@@ -271,6 +271,90 @@ end;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 2b. The scenario surface: the tenant boundary on scenarios and on the
+--     protected results, and the rule that a scenario cannot borrow more than
+--     the property costs.
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  v_org_a       uuid;
+  v_org_b       uuid;
+  v_seat_lo_a   uuid;
+  v_borrower_b  uuid;
+  v_scenario_a  uuid;
+  v_borrower_a  uuid;
+  affected      bigint;
+begin
+  select id into v_org_a from public.organizations where slug = 'harborline-mortgage';
+  select id into v_org_b from public.organizations where slug = 'bayou-city-lending';
+  select id into v_seat_lo_a from public.seats where org_id = v_org_a and role = 'loan_officer';
+  select id into v_borrower_a from public.borrowers where org_id = v_org_a order by last_name limit 1;
+  select id into v_borrower_b from public.borrowers where org_id = v_org_b order by last_name limit 1;
+  select id into v_scenario_a from public.scenarios where org_id = v_org_a limit 1;
+
+  perform set_config('request.jwt.claims', jsonb_build_object(
+    'sub', gen_random_uuid()::text, 'role', 'authenticated',
+    'session_id', gen_random_uuid()::text,
+    'org_id', v_org_a::text, 'org_role', 'loan_officer',
+    'seat_id', v_seat_lo_a::text, 'is_demo_admin', false
+  )::text, true);
+  execute 'set local role authenticated';
+
+  -- A scenario stamped with the other tenant's org_id.
+  begin
+    insert into public.scenarios (org_id, borrower_id, property_address, purchase_price,
+                                  down_payment, loan_purpose, loan_amount, ltv, credit_band)
+    values (v_org_b, v_borrower_b, '1 Nowhere St, Houston, TX 77002',
+            400000, 80000, 'purchase', 320000, 80, '740+');
+    raise exception 'a scenario was written into another tenant';
+  exception
+    when insufficient_privilege then
+      insert into test_results (name, outcome, detail) values
+        ('cross tenant scenario insert is rejected', 'pass', 'WITH CHECK raised SQLSTATE 42501');
+  end;
+
+  -- A protected result stamped with the other tenant's org_id.
+  begin
+    insert into public.scenario_results (org_id, scenario_id, lender_alias, rate_low, rate_high,
+                                         ltv_max, term_months, fee_range_low, fee_range_high)
+    values (v_org_b, v_scenario_a, 'Lender Z', 5.000, 5.500, 80, 360, 1000, 2000);
+    raise exception 'a scenario result was written into another tenant';
+  exception
+    when insufficient_privilege then
+      insert into test_results (name, outcome, detail) values
+        ('cross tenant scenario result insert is rejected', 'pass', 'WITH CHECK raised SQLSTATE 42501');
+  end;
+
+  -- A quote is evidence. Nobody holds update or delete on it, so it cannot be
+  -- rewritten after the borrower has seen it.
+  begin
+    update public.scenario_results set rate_low = 0.001 where org_id = v_org_a;
+    raise exception 'a scenario result was edited after the fact';
+  exception
+    when insufficient_privilege then
+      insert into test_results (name, outcome, detail) values
+        ('scenario results cannot be edited after the fact', 'pass', 'no update grant, SQLSTATE 42501');
+  end;
+
+  -- The deposit and the loan have to add up to the price.
+  begin
+    insert into public.scenarios (org_id, borrower_id, property_address, purchase_price,
+                                  down_payment, loan_purpose, loan_amount, ltv, credit_band)
+    values (v_org_a, v_borrower_a, '2 Nowhere St, Houston, TX 77002',
+            400000, 80000, 'purchase', 400000, 100, '740+');
+    raise exception 'a scenario borrowed more than the property costs';
+  exception
+    when check_violation then
+      insert into test_results (name, outcome, detail) values
+        ('a scenario cannot borrow more than the property costs', 'pass',
+         'the loan and the deposit must equal the price, SQLSTATE 23514');
+  end;
+
+  execute 'reset role';
+end;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 3. Storage objects obey the same boundary.
 -- ---------------------------------------------------------------------------
 do $$

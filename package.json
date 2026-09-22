@@ -17,7 +17,9 @@
     "provision": "node scripts/provision.mjs",
     "verify:auth": "node scripts/verify-auth.mjs",
     "seed:documents": "node scripts/seed-documents.mjs",
-    "verify:borrowers": "node scripts/verify-borrowers.mjs"
+    "verify:borrowers": "node scripts/verify-borrowers.mjs",
+    "verify:uploads": "node scripts/verify-uploads.mjs",
+    "verify:scenarios": "node scripts/verify-scenarios.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

@@ -7,8 +7,14 @@
 // caller's org_id claim. The files themselves are generated here, so nothing
 // personal is committed to the repository.
 //
-// Uses the secret key, like the other seeding script, and never in a request
-// path.
+// It signs in as each organisation's loan officer seat and uploads as that
+// seat, rather than uploading with the secret key. Two reasons, both of which
+// matter more than the convenience of the admin path:
+//   the upload then goes through the storage policies like any other, so this
+//     script exercises the same boundary the product does;
+//   the audit trigger reads the acting seat from the token, so every activity
+//     row has an actor instead of reading as missing data.
+// The secret key is still used to read the roster and to resolve ids.
 //
 // Usage: npm run seed:documents
 
@@ -22,6 +28,21 @@ const admin = createClient(
   process.env.SUPABASE_SECRET_KEY,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
+
+/** A client signed in as one seat, so writes carry that seat's claims. */
+async function asSeat(email) {
+  const client = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    { auth: { autoRefreshToken: false, persistSession: false } }
+  );
+  const { error } = await client.auth.signInWithPassword({
+    email,
+    password: process.env.DEMO_PASSWORD,
+  });
+  if (error) throw new Error(`could not sign in as ${email}: ${error.message}`);
+  return client;
+}
 
 /** The smallest thing a PDF reader will still open. */
 function samplePdf(title) {
@@ -74,10 +95,12 @@ for (const org of orgs) {
 
   const { data: seat } = await admin
     .from("seats")
-    .select("id")
+    .select("id, login_email")
     .eq("org_id", org.id)
     .eq("role", "loan_officer")
     .single();
+
+  const seated = await asSeat(seat.login_email);
 
   for (const borrower of borrowers ?? []) {
     for (const file of FILES) {
@@ -96,7 +119,7 @@ for (const org of orgs) {
       const bytes = samplePdf(`${file.title} for ${borrower.first_name} ${borrower.last_name}`);
       const path = `${org.id}/${borrower.id}/${randomUUID()}-${file.filename}`;
 
-      const upload = await admin.storage
+      const upload = await seated.storage
         .from("borrower-docs")
         .upload(path, bytes, { contentType: "application/pdf", upsert: false });
 
@@ -105,7 +128,7 @@ for (const org of orgs) {
         continue;
       }
 
-      const { error } = await admin.from("documents").insert({
+      const { error } = await seated.from("documents").insert({
         org_id: org.id,
         borrower_id: borrower.id,
         storage_path: path,

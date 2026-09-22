@@ -130,11 +130,18 @@ create table public.scenarios (
   borrower_id       uuid not null references public.borrowers(id) on delete cascade,
   property_address  text not null,
   purchase_price    numeric(14, 2) not null check (purchase_price > 0),
+  down_payment      numeric(14, 2) not null default 0 check (down_payment >= 0),
+  loan_purpose      text not null default 'purchase'
+                    check (loan_purpose in ('purchase', 'refinance', 'cash_out_refinance', 'construction')),
   loan_amount       numeric(14, 2) not null check (loan_amount > 0),
   ltv               numeric(5, 2) not null check (ltv > 0 and ltv <= 100),
   credit_band       text not null check (credit_band in ('740+', '700-739', '660-699', '620-659', 'below-620')),
   requested_by_seat uuid references public.seats(id) on delete set null,
-  created_at        timestamptz not null default now()
+  created_at        timestamptz not null default now(),
+  -- The loan is what is left after the deposit. Stated as a constraint rather
+  -- than trusted from the caller, so a scenario cannot be saved claiming to
+  -- borrow more than the property costs.
+  constraint scenarios_loan_matches_price check (loan_amount = purchase_price - down_payment)
 );
 
 -- What the matching service returns. Ranges only, and an alias in place of the
@@ -856,36 +863,38 @@ join public.organizations o
 
 -- Eighteen scenarios. The property address is unique, so the later inserts
 -- join on it rather than on a fragile row number.
-insert into public.scenarios (org_id, borrower_id, property_address, purchase_price, loan_amount, ltv, credit_band, requested_by_seat)
+insert into public.scenarios (org_id, borrower_id, property_address, purchase_price, down_payment, loan_purpose, loan_amount, ltv, credit_band, requested_by_seat)
 select b.org_id,
        b.id,
        v.address,
        v.purchase_price,
+       v.purchase_price - round(v.purchase_price * v.ltv / 100, 2),
+       v.loan_purpose,
        round(v.purchase_price * v.ltv / 100, 2),
        v.ltv,
        v.credit_band,
        (select s.id from public.seats s
          where s.org_id = b.org_id and s.role = 'loan_officer' limit 1)
 from (values
-  ('Marisol',  'Vega',      '2118 Westheimer Rd, Houston, TX 77098',   415000.00, 80.00, '740+'),
-  ('Dwight',   'Okonkwo',   '4407 Kirby Dr, Houston, TX 77098',        620000.00, 75.00, '700-739'),
-  ('Priya',    'Raman',     '910 Heights Blvd, Houston, TX 77008',     289000.00, 90.00, '660-699'),
-  ('Caleb',    'Fontenot',  '3316 Bissonnet St, Houston, TX 77005',    875000.00, 70.00, '740+'),
-  ('Yolanda',  'Briggs',    '1204 Yale St, Houston, TX 77008',         352500.00, 85.00, '700-739'),
-  ('Hector',   'Salinas',   '6015 Memorial Dr, Houston, TX 77007',    1250000.00, 65.00, '740+'),
-  ('Nadia',    'Farouk',    '2450 Buffalo Speedway, Houston, TX 77019',498000.00, 80.00, '620-659'),
-  ('Trevor',   'Lindqvist', '5122 Richmond Ave, Houston, TX 77056',    725000.00, 75.00, '700-739'),
-  ('Imani',    'Bell',      '1811 Washington Ave, Houston, TX 77007',  268000.00, 95.00, '660-699'),
-  ('Rafael',   'Montoya',   '720 Studewood St, Houston, TX 77007',     545000.00, 80.00, '740+'),
-  ('Omar',     'Haddad',    '3901 Holcombe Blvd, Houston, TX 77021',   192500.00, 90.00, '620-659'),
-  ('Bethany',  'Pruitt',    '1650 W Gray St, Houston, TX 77019',       960000.00, 70.00, '740+'),
-  ('Kwame',    'Mensah',    '8330 Post Oak Blvd, Houston, TX 77027',  1450000.00, 60.00, '740+'),
-  ('Chandra',  'Patel',     '2205 Shepherd Dr, Houston, TX 77019',     434000.00, 85.00, '700-739'),
-  ('Noelia',   'Duarte',    '14320 Grant Rd, Cypress, TX 77429',       315000.00, 90.00, '660-699'),
-  ('Colette',  'Dubois',    '2708 Alabama St, Houston, TX 77004',      228000.00, 95.00, 'below-620'),
-  ('Fatima',   'Zubair',    '11507 Beechnut St, Houston, TX 77072',    275500.00, 85.00, '660-699'),
-  ('Emmanuel', 'Osei',      '605 Sawyer St, Houston, TX 77007',        588000.00, 80.00, '700-739')
-) as v(first_name, last_name, address, purchase_price, ltv, credit_band)
+  ('Marisol',  'Vega',      '2118 Westheimer Rd, Houston, TX 77098',   415000.00, 80.00, '740+', 'purchase'),
+  ('Dwight',   'Okonkwo',   '4407 Kirby Dr, Houston, TX 77098',        620000.00, 75.00, '700-739', 'purchase'),
+  ('Priya',    'Raman',     '910 Heights Blvd, Houston, TX 77008',     289000.00, 90.00, '660-699', 'refinance'),
+  ('Caleb',    'Fontenot',  '3316 Bissonnet St, Houston, TX 77005',    875000.00, 70.00, '740+', 'purchase'),
+  ('Yolanda',  'Briggs',    '1204 Yale St, Houston, TX 77008',         352500.00, 85.00, '700-739', 'cash_out_refinance'),
+  ('Hector',   'Salinas',   '6015 Memorial Dr, Houston, TX 77007',    1250000.00, 65.00, '740+', 'purchase'),
+  ('Nadia',    'Farouk',    '2450 Buffalo Speedway, Houston, TX 77019',498000.00, 80.00, '620-659', 'refinance'),
+  ('Trevor',   'Lindqvist', '5122 Richmond Ave, Houston, TX 77056',    725000.00, 75.00, '700-739', 'purchase'),
+  ('Imani',    'Bell',      '1811 Washington Ave, Houston, TX 77007',  268000.00, 95.00, '660-699', 'purchase'),
+  ('Rafael',   'Montoya',   '720 Studewood St, Houston, TX 77007',     545000.00, 80.00, '740+', 'cash_out_refinance'),
+  ('Omar',     'Haddad',    '3901 Holcombe Blvd, Houston, TX 77021',   192500.00, 90.00, '620-659', 'refinance'),
+  ('Bethany',  'Pruitt',    '1650 W Gray St, Houston, TX 77019',       960000.00, 70.00, '740+', 'purchase'),
+  ('Kwame',    'Mensah',    '8330 Post Oak Blvd, Houston, TX 77027',  1450000.00, 60.00, '740+', 'construction'),
+  ('Chandra',  'Patel',     '2205 Shepherd Dr, Houston, TX 77019',     434000.00, 85.00, '700-739', 'purchase'),
+  ('Noelia',   'Duarte',    '14320 Grant Rd, Cypress, TX 77429',       315000.00, 90.00, '660-699', 'refinance'),
+  ('Colette',  'Dubois',    '2708 Alabama St, Houston, TX 77004',      228000.00, 95.00, 'below-620', 'purchase'),
+  ('Fatima',   'Zubair',    '11507 Beechnut St, Houston, TX 77072',    275500.00, 85.00, '660-699', 'cash_out_refinance'),
+  ('Emmanuel', 'Osei',      '605 Sawyer St, Houston, TX 77007',        588000.00, 80.00, '700-739', 'purchase')
+) as v(first_name, last_name, address, purchase_price, ltv, credit_band, loan_purpose)
 join public.borrowers b
   on b.first_name = v.first_name and b.last_name = v.last_name;
 

@@ -5,7 +5,10 @@ import { createClient } from "@/lib/supabase/server";
 import { requireClaims, ROLE_LABELS } from "@/lib/auth";
 import { SOURCE_LABELS, type Borrower } from "@/lib/borrowers";
 import type { Seat } from "@/lib/portal";
-import { Card, Chip, Detail, EmptyState, ButtonLink, PageHeader } from "@/components/ui";
+import { Card, Chip, Detail, EmptyState, PageHeader } from "@/components/ui";
+import { documentKind } from "@/lib/documents";
+import { UploadDocument } from "./upload";
+import { SupportReference } from "./support-reference";
 
 export const metadata: Metadata = { title: "Borrower" };
 
@@ -161,8 +164,8 @@ export default async function BorrowerPage({
                 <span className="text-muted">no seat recorded</span>
               )}
             </Detail>
-            <Detail label="Borrower id">
-              <span className="font-mono text-xs break-all">{borrower.id}</span>
+            <Detail label="Added">
+              <span>{dateTime.format(new Date(borrower.created_at))}</span>
             </Detail>
           </dl>
         </Card>
@@ -194,11 +197,14 @@ export default async function BorrowerPage({
       </div>
 
       <Card className="overflow-hidden">
-        <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
-          <h2 className="font-medium">Documents</h2>
-          <p className="text-xs text-muted">
-            Links are signed and expire in {SIGNED_URL_SECONDS / 60} minutes
-          </p>
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line px-4 py-3">
+          <div>
+            <h2 className="font-medium">Documents</h2>
+            <p className="text-xs text-muted">
+              Links are signed and expire in {SIGNED_URL_SECONDS / 60} minutes
+            </p>
+          </div>
+          <UploadDocument borrowerId={borrower.id} orgId={borrower.org_id} />
         </div>
         {docs.length ? (
           <ul className="divide-y divide-line/60">
@@ -209,11 +215,13 @@ export default async function BorrowerPage({
                 <li key={doc.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">{doc.filename}</p>
-                    <p className="truncate font-mono text-xs text-muted">{doc.storage_path}</p>
+                    <p className="text-xs text-muted">
+                      {documentKind(doc.filename)} . {fileSize(doc.size_bytes)} . added{" "}
+                      {dateTime.format(new Date(doc.created_at))}
+                    </p>
                   </div>
-                  <span className="text-xs text-muted whitespace-nowrap">{fileSize(doc.size_bytes)}</span>
                   <span className="hidden text-xs text-muted whitespace-nowrap sm:inline">
-                    {seat ? seat.label : "unknown seat"}
+                    {seat ? seat.label : "System import"}
                   </span>
                   {url ? (
                     <a
@@ -235,7 +243,6 @@ export default async function BorrowerPage({
           <EmptyState
             title="No documents yet"
             body="Borrower documents live in this organisation's own folder in private storage, and are only ever served through a link that expires."
-            action={<ButtonLink href="/borrowers">Back to the list</ButtonLink>}
           />
         )}
       </Card>
@@ -262,7 +269,7 @@ export default async function BorrowerPage({
                       {from} to {to}
                     </span>
                   ) : null}
-                  <span className="text-muted">{seat ? seat.label : "no seat recorded"}</span>
+                  <span className="text-muted">{seat ? seat.label : "System import"}</span>
                   <span className="ml-auto text-xs text-muted whitespace-nowrap">
                     {dateTime.format(new Date(entry.at))}
                   </span>
@@ -276,6 +283,7 @@ export default async function BorrowerPage({
           </p>
         )}
       </Card>
+      <SupportReference id={borrower.id} />
     </div>
   );
 }

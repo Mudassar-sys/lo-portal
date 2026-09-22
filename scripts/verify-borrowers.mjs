@@ -21,6 +21,7 @@ const PASSWORD = process.env.DEMO_PASSWORD;
 const SHOTS = "docs/screenshots";
 const FIXTURE = "docs/fixtures/borrowers-sample.csv";
 
+const PAGE_SIZE = 25; // must match lib/borrowers.ts
 const SEAT_HARBORLINE = "harborline.lo@fieldstone.example";
 const SEAT_BAYOU = "bayoucity.manager@fieldstone.example";
 
@@ -74,6 +75,21 @@ try {
   const rowCount = await page.locator("table tbody tr").count();
   check(rowCount === 15, `the list shows this tenant's 15 borrowers, saw ${rowCount}`);
   await shot(page, "10-borrowers-list-desktop");
+
+  // The 390 pixel list is captured here rather than later, so every list
+  // screenshot shows the same clean seed state. Capturing it after the import
+  // is what made one screenshot show 21 rows and another 15.
+  const cleanSmall = await mobile.newPage();
+  await signIn(cleanSmall, SEAT_HARBORLINE);
+  await cleanSmall.goto(`${BASE}/borrowers`, { waitUntil: "networkidle" });
+  const smallRows = await cleanSmall.locator("ul li").count();
+  check(smallRows >= 15, `the 390 pixel list shows the same seed state, ${smallRows} entries`);
+  const cleanOverflow = await cleanSmall.evaluate(
+    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
+  );
+  check(!cleanOverflow, "the list does not scroll sideways at 390 pixels");
+  await shot(cleanSmall, "19-borrowers-list-390");
+  await cleanSmall.close();
 
   record("");
   record("2. search and filter");
@@ -189,19 +205,36 @@ try {
   // So the delay is armed first, which holds the prefetch open as well as the
   // navigation, and then a filter link that has not been visited is clicked.
   await page.unroute("**/borrowers**").catch(() => {});
-  await page.route("**/borrowers?**", async (route) => {
-    await new Promise((resolve) => setTimeout(resolve, 4000));
-    await route.continue();
+
+  // How this is actually observed, after three wrong attempts worth writing
+  // down. loading.tsx is the Suspense fallback for the segment, and it is
+  // painted while the server streams. Holding the response does not show it:
+  // the client router waits for the response to begin before it commits the
+  // navigation, so the browser simply stays on the previous page. What does
+  // show it is a document request over a slow connection, because then the
+  // shell arrives, paints the fallback, and the content follows.
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send("Network.enable");
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 300,
+    downloadThroughput: 12000,
+    uploadThroughput: 12000,
   });
-  // And it has to be entered from outside the segment. Changing a search
-  // parameter stays inside it, so the boundary never re-suspends.
-  await page.goto(`${BASE}/sessions`, { waitUntil: "networkidle" });
-  await page.click('a[href="/borrowers"]');
-  await page.waitForSelector(".animate-pulse", { timeout: 15000 });
-  await shot(page, "15-borrowers-loading-desktop");
+
+  const navigation = page.goto(`${BASE}/borrowers`, { waitUntil: "commit" }).catch(() => {});
+  await page.waitForSelector(".animate-pulse", { timeout: 20000 });
   const skeleton = await page.locator(".animate-pulse").count();
   check(skeleton > 0, `the skeleton from loading.tsx is on screen, ${skeleton} placeholders`);
-  await page.unroute("**/borrowers?**");
+  await shot(page, "15-borrowers-loading-desktop");
+
+  await cdp.send("Network.emulateNetworkConditions", {
+    offline: false,
+    latency: 0,
+    downloadThroughput: -1,
+    uploadThroughput: -1,
+  });
+  await navigation;
   await page.waitForLoadState("networkidle").catch(() => {});
 
   record("7. cross tenant: a different organisation sees none of this");
@@ -247,15 +280,9 @@ try {
 
   record("");
   record("8. 390 pixel layouts");
+  // The mobile context signed in during step 1, so it carries a session
+  // already. Asking for /login here would simply be redirected away.
   const small = await mobile.newPage();
-  await signIn(small, SEAT_HARBORLINE);
-  await small.goto(`${BASE}/borrowers`, { waitUntil: "networkidle" });
-  const horizontalOverflow = await small.evaluate(
-    () => document.documentElement.scrollWidth > document.documentElement.clientWidth + 1
-  );
-  check(!horizontalOverflow, "the list does not scroll sideways at 390 pixels");
-  await shot(small, "19-borrowers-list-390");
-
   await small.goto(detailUrl, { waitUntil: "networkidle" });
   await shot(small, "20-borrower-detail-390");
 
@@ -267,6 +294,19 @@ try {
   );
   check(!smallOverflow, "the import preview does not scroll sideways at 390 pixels");
   await shot(small, "21-csv-import-preview-390");
+
+  record("");
+  record("8b. pagination, once a tenant holds more than one page");
+  await page.goto(`${BASE}/borrowers/import`, { waitUntil: "networkidle" });
+  await page.setInputFiles('input[type="file"]', "docs/fixtures/borrowers-bulk.csv");
+  await page.waitForSelector("text=Preview", { timeout: 30000 });
+  await page.click('button:has-text("Import 30")');
+  await page.waitForSelector("text=Import finished", { timeout: 60000 });
+  await page.goto(`${BASE}/borrowers`, { waitUntil: "networkidle" });
+  const pager = await page.locator('a:has-text("Next")').count();
+  const pageLabel = await page.locator("text=/^[0-9]+ of [0-9]+$/").first().innerText();
+  check(pager === 1, `the pager appears past ${PAGE_SIZE} rows, page label reads "${pageLabel}"`);
+  await shot(page, "24-borrowers-pagination-desktop");
 
   record("");
   record("9. the empty state, on a tenant with nothing in it");

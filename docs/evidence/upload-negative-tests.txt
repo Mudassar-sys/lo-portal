@@ -1,0 +1,30 @@
+Upload negative tests, run as a signed in loan officer seat.
+captured 2026-09-22T16:22:37.572Z
+
+1. a file over the 10 MB bucket limit
+        error: The object exceeded the maximum allowed size
+  pass  storage refused an 11 MB file
+
+2. a type the bucket does not allow
+        error: mime type text/plain is not supported
+  pass  storage refused a text/plain file
+
+3. a path inside another organisation's folder
+        error: new row violates row-level security policy
+  pass  storage refused a write into another tenant's folder
+
+4. reading another organisation's folder
+        entries returned: 0
+  pass  listing another tenant's folder returns nothing
+
+5. and a legitimate upload still works
+  pass  a PDF in the seat's own folder is accepted: accepted
+        removed again, so the run leaves nothing behind
+
+all checks passed
+
+Note on where each refusal came from: none of these were stopped by
+application code. One and two are the bucket's own file_size_limit and
+allowed_mime_types, set by scripts/provision.mjs. Three and four are the
+row level security policies on storage.objects, which compare the first
+segment of the object path against the org_id claim in the caller's token.
