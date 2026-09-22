@@ -9,7 +9,18 @@ and the tests that prove the tenant boundary are meant to be read first.
 
 ## Status
 
-Day 1 in progress. This README is filled in as each part lands.
+Day 1. Schema, tenant policies, the access token hook, seed data and auth are
+in. Screens land on Day 2. This README is filled in as each part does.
+
+## Demo access
+
+Nine seats across three lender organisations, three seats each. The addresses
+are listed on the sign in page and in `supabase/SETUP.md`, and they use the
+reserved `.example` top level domain so they cannot reach a real mailbox.
+
+All nine share one password. It is set by `npm run seed:users` from
+`DEMO_PASSWORD` in `.env.local`, it is never printed by any script and never
+committed, and it is the owner's to choose and the owner's to hand out.
 
 ## What it proves
 

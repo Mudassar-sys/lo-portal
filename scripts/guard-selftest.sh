@@ -54,6 +54,18 @@ check "GUARD FAIL (staged)"  "the client name in staged content"
 check "em dash or en dash"   "the em dash"
 check "possible key material" "the secret key"
 
+# And a file NAMED after a banned term, which content checks cannot see.
+badname="cla""ude-notes.md"
+echo "harmless contents" > "$badname"
+git add "$badname"
+out2="$(bash "$guard" 2>&1)"
+if ! printf '%s' "$out2" | grep -q "GUARD FAIL (path)"; then
+  echo "SELFTEST FAIL: guard did not report a banned term in a file name"
+  fail=1
+fi
+git rm -q --cached "$badname"
+rm -f "$badname"
+
 # And it must pass once the poison is gone.
 git rm -q --cached poison.txt
 rm -f poison.txt

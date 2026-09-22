@@ -98,3 +98,36 @@ version matched to the pinned release; lines citing it name the file.
 
 - A function declared `stable` cannot execute a data modifying statement, so the access token hook must be volatile: it writes to seats when it claims one. https://www.postgresql.org/docs/current/xfunc-volatility.html - 22 Sep 2026
 - One trigger function serving several tables must not name a column of any one of them. The audit trigger converts the row to jsonb and asks whether the key is present, because `organizations` is the tenant itself and is keyed by id with no org_id column. Caught by the test run as "null value in column org_id of relation audit_log violates not-null constraint".
+
+## Server side auth in Next.js
+
+- The browser client, the server client and the proxy client are taken verbatim from the official guide, including the comment "Do not run code between createServerClient and supabase.auth.getClaims()". The environment variable names in that guide are NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, which is what .env.example uses. https://supabase.com/docs/guides/auth/server-side/nextjs - 22 Sep 2026
+- "Never trust supabase.auth.getSession() inside server code such as Proxy. It reads the session out of the cookie without revalidating it." getClaims verifies the token signature on every call, locally against a cached JWKS when the project uses asymmetric signing keys. Same URL - 22 Sep 2026
+- getClaims also refreshes: "If the user's access token is about to expire when calling this function, the user's session will first be refreshed before validating the JWT." That refresh is the moment the access token hook re-runs, which is what makes seat enforcement take effect. https://supabase.com/docs/reference/javascript/auth-getclaims - 22 Sep 2026
+- "The returned claims can be customized per project using the Custom Access Token Hook." Same URL - 22 Sep 2026
+- Returning a different response from the proxy requires carrying the refreshed cookies and the cache headers across, otherwise "you may be causing the browser and server to go out of sync and terminate the user's session prematurely". Both redirects in lib/supabase/proxy.ts go through one helper that does this. https://supabase.com/docs/guides/auth/server-side/nextjs - 22 Sep 2026
+- Correction to that guide, observed while building: it writes the carry across as `myNewResponse.cookies.setAll(...)`, but ResponseCookies in Next.js 16 exposes get, getAll, set and delete only. `tsc` rejects setAll with TS2551. The helper sets each cookie in turn, and each entry already carries its options. Observed on next 16.3.5 - 22 Sep 2026
+- The framework's own warning, which is why every action calls requireClaims rather than trusting the proxy: "Always verify authentication and authorization inside each Server Function rather than relying on Proxy alone", because a matcher change or a refactor can silently remove proxy coverage. https://nextjs.org/docs/app/api-reference/file-conventions/proxy - 22 Sep 2026
+
+## signOut scopes
+
+- "the default scope is 'global'. This signs the user out of every device they are currently signed in on, not just the current tab/session. If you only want to sign the user out of the current session ... pass { scope: 'local' } explicitly." The sign out button therefore states local. https://supabase.com/docs/reference/javascript/auth-signout - 22 Sep 2026
+- The Sessions screen's "sign out other devices" uses the third scope, which signs out all other sessions and keeps the current one. Documented caveat carried into the UI copy: "Since Supabase Auth uses JWTs ... the access token JWT will be valid until it's expired. When the user signs out, Supabase revokes the refresh token and deletes the JWT from the client-side. This does not revoke the JWT and it will still be valid until it expires." Same URL - 22 Sep 2026
+- Also documented and worth knowing when wiring listeners: "If using others scope, no SIGNED_OUT event is fired!" Same URL - 22 Sep 2026
+
+## Seat takeover, corrected
+
+- The hook event carries authentication_method, whose documented values include password and token_refresh. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
+- Correction to what was built in the previous step: the hook refused any session whose id differed from the seat's, which locks a person out of their own seat the moment they change machine. Section 3.3 of the plan specifies takeover, not lockout. The rule now turns on authentication_method: a fresh sign in takes the seat, a refresh from a session that no longer holds it is refused. A new test asserts both halves.
+
+## Running the tests against the project
+
+- Library added beyond the plan, per rule 9, at the Solutions Lead's direction: pg 8.23.0, a devDependency only, used by scripts/test-schema.mjs when DATABASE_URL is present so the same two files run against the project's own Postgres with no emulation. https://www.npmjs.com/package/pg - 22 Sep 2026
+- process.loadEnvFile is available in this Node build, so the scripts read .env.local without a dotenv dependency. Verified by running `node -e "console.log(typeof process.loadEnvFile)"`, which printed "function" on Node 25.6.1. https://nodejs.org/api/process.html - 22 Sep 2026
+
+## Two things next dev does to the repository
+
+- `next dev` writes agent instruction files into the repository root on every start, and re-adds them if removed: "This block is written and re-added by `next dev`". The generator is switched off with `agentRules: false` in the Next config, which the tool's own message names. Observed on next 16.3.5, and the setting is read back from the running config - 22 Sep 2026
+- Without `turbopack.root`, Turbopack searches upward for a lock file and can adopt one from outside the repository: "Next.js ignored package-lock.json in <home> because it is outside the current Git repository ... To use this directory, set `turbopack.root` in your Next.js config." Set to the repository root. Observed on next 16.3.5 - 22 Sep 2026
+- Both were caught by the repository guard rather than by review, which is the point of it. The guard now also checks file and directory names, not only contents, and refuses the literal banned words in its own tracked files: the .gitignore entry for the generated file is written as a character class for that reason.
+- Scope correction to guard check 6, stated because it narrows a claim made in the previous report: the build output is scanned for the client, sister company, person and platform names only. It is not scanned for AI tool names, because a bundled dependency carries such strings in its own docstrings: one vendored source map contains an example vector index name built from a model vendor's name. That is neither ours to remove nor evidence of anything. Everything this repository authors is still checked for both sets.

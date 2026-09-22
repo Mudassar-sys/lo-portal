@@ -1,39 +1,93 @@
-// Run the schema and the isolation tests against a real PostgreSQL engine,
-// with no server, no container and no network, so the database half of the
-// build is verified before anything is pasted into a dashboard.
+// Run the schema and the isolation tests against PostgreSQL.
 //
-// PGlite is PostgreSQL compiled to WebAssembly. It is the real engine and the
-// real planner, so row level security, FORCE ROW LEVEL SECURITY, policies,
-// role switching and SECURITY DEFINER all behave as they do in production.
+// Two modes, and the run says which one produced the result:
 //
-// What this does NOT prove, stated plainly so the result is not oversold:
-//   the engine version here is not the managed project's version, and the run
-//   prints both so the difference is on the record;
-//   the platform's own auth and storage schemas are emulated by
-//   supabase/tests/harness.sql, so anything specific to the managed
-//   implementations of those two is out of scope here;
-//   the token hook is exercised by calling it directly, which is what the
-//   platform does, but the platform's wiring of the hook is configured in the
-//   dashboard and is only provable on the project itself.
+//   real     DATABASE_URL is set in .env.local. The two files run against the
+//            project itself, on its own Postgres, with no harness. This is the
+//            one that counts.
 //
-// Usage: npm run test:schema
+//   local    DATABASE_URL is absent. The files run against PGlite, which is
+//            PostgreSQL compiled to WebAssembly, with
+//            supabase/tests/harness.sql supplying the platform objects the
+//            schema depends on. No server, container or network needed, so a
+//            syntax error or a broken policy is caught before anything reaches
+//            a dashboard. It is not a substitute for the real run: the engine
+//            version differs, and the platform's auth and storage schemas are
+//            emulated.
+//
+// Both modes must report the same checks.
+//
+// In real mode the schema file drops and recreates the portal tables, which is
+// what makes it re-runnable. Pass --tests-only to run just the isolation file
+// against what is already there.
+//
+// Usage: npm run test:schema  [--tests-only]
 
 import { readFileSync } from "node:fs";
-import { PGlite } from "@electric-sql/pglite";
 
-const files = [
-  ["harness", "supabase/tests/harness.sql"],
-  ["schema", "supabase/schema.sql"],
-  ["isolation tests", "supabase/tests/isolation.sql"],
-];
+const testsOnly = process.argv.includes("--tests-only");
+
+try {
+  process.loadEnvFile(".env.local");
+} catch {
+  // No .env.local is a normal state before the project exists. Local mode.
+}
+
+const databaseUrl = process.env.DATABASE_URL;
+const mode = databaseUrl ? "real" : "local";
 
 const pad = (s, n) => String(s).padEnd(n);
 
-const db = await PGlite.create();
+/** Open a connection and return a uniform { label, version, exec, close }. */
+async function connect() {
+  if (mode === "real") {
+    const { default: pg } = await import("pg");
+    // Supabase requires TLS. If the connection string states an sslmode, that
+    // is honoured as written; otherwise TLS is used without verifying the
+    // chain, which is what the platform's own connection snippets do.
+    const ssl = /sslmode=/.test(databaseUrl) ? undefined : { rejectUnauthorized: false };
+    const client = new pg.Client({ connectionString: databaseUrl, ssl });
+    await client.connect();
+    const { rows } = await client.query("select version() as v");
+    return {
+      label: "the project database over DATABASE_URL",
+      version: rows[0].v,
+      // node-postgres returns an array of results for a multi statement query.
+      exec: async (sql) => {
+        const result = await client.query(sql);
+        return Array.isArray(result) ? result : [result];
+      },
+      close: () => client.end(),
+    };
+  }
 
-const { rows: versionRows } = await db.query("select version() as v");
-console.log(versionRows[0].v);
+  const { PGlite } = await import("@electric-sql/pglite");
+  const db = await PGlite.create();
+  const { rows } = await db.query("select version() as v");
+  return {
+    label: "a local PGlite engine with supabase/tests/harness.sql",
+    version: rows[0].v,
+    exec: (sql) => db.exec(sql),
+    close: () => db.close(),
+  };
+}
+
+const db = await connect();
+
+console.log(`mode: ${mode}, against ${db.label}`);
+console.log(db.version);
 console.log("");
+
+const files = [];
+if (mode === "local") files.push(["harness", "supabase/tests/harness.sql"]);
+if (!testsOnly) files.push(["schema", "supabase/schema.sql"]);
+files.push(["isolation tests", "supabase/tests/isolation.sql"]);
+
+if (mode === "real" && !testsOnly) {
+  console.log("note: the schema file drops and recreates the portal tables.");
+  console.log("      use --tests-only to run the tests against what is there.");
+  console.log("");
+}
 
 let testTable = null;
 
@@ -47,9 +101,7 @@ for (const [label, path] of files) {
     console.error(`FAIL  ${label} (${path})`);
     console.error(`      ${error.message}`);
     if (error.position) {
-      const at = Number(error.position);
-      const upto = sql.slice(0, at);
-      const line = upto.split("\n").length;
+      const line = sql.slice(0, Number(error.position)).split("\n").length;
       console.error(`      at line ${line}: ${sql.split("\n")[line - 1]?.trim()}`);
     }
     await db.close();
@@ -57,16 +109,12 @@ for (const [label, path] of files) {
   }
   console.log(`ok    ${pad(label, 16)} ${path}  (${Date.now() - started}ms)`);
 
-  // The isolation file ends with the results table, then a tally.
-  const withRows = results.filter((r) => r.rows?.length);
-  if (label === "isolation tests" && withRows.length) {
-    testTable = withRows[withRows.length - 2] ?? withRows[withRows.length - 1];
-  }
+  const withRows = results.filter((r) => r?.rows?.length);
+
   if (label === "schema" && withRows.length) {
-    const seeded = withRows[withRows.length - 1].rows;
     console.log("");
     console.log("Seeded tenants:");
-    for (const r of seeded) {
+    for (const r of withRows[withRows.length - 1].rows) {
       console.log(
         `  ${pad(r.display_name, 30)} premium=${pad(r.premium, 6)} seats=${r.seats}` +
           ` borrowers=${pad(r.borrowers, 3)} scenarios=${pad(r.scenarios, 3)}` +
@@ -74,6 +122,14 @@ for (const [label, path] of files) {
           ` ledger=${pad(r.ledger_entries, 3)} audit=${r.audit_rows}`
       );
     }
+    console.log("");
+  }
+
+  if (label === "isolation tests") {
+    // The file returns the per test table, then a tally by outcome.
+    testTable = withRows.findLast?.((r) => r.rows.some((row) => "detail" in row))
+      ?? withRows[withRows.length - 2]
+      ?? withRows[withRows.length - 1];
   }
 }
 
@@ -96,7 +152,7 @@ for (const r of testTable.rows) {
 }
 
 console.log("");
-console.log(`${passed} passed, ${skipped} skipped, ${failed} failed`);
+console.log(`${passed} passed, ${skipped} skipped, ${failed} failed  (mode: ${mode})`);
 
 await db.close();
 process.exit(failed > 0 ? 1 : 0);

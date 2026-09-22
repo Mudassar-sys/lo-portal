@@ -12,7 +12,8 @@
     "capture": "bash scripts/capture.sh",
     "guard:selftest": "bash scripts/guard-selftest.sh",
     "hooks:install": "git config core.hooksPath .githooks",
-    "test:schema": "node scripts/test-schema.mjs"
+    "test:schema": "node scripts/test-schema.mjs",
+    "seed:users": "node scripts/seed-users.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -31,6 +32,7 @@
     "@types/react-dom": "19.3.0",
     "eslint": "9.39.1",
     "eslint-config-next": "16.3.5",
+    "pg": "^8.23.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"
   }

@@ -505,25 +505,42 @@ begin
     );
   end if;
 
-  -- Named seat session enforcement. The seat holds the one session id that is
-  -- allowed to use it. A second device takes the seat over by calling
-  -- public.claim_seat_session, and the first device then fails here at its
-  -- next refresh. Note that an already issued token cannot be revoked before
-  -- it expires, which is why the project JWT expiry is set to 600 seconds.
-  if v_seat.active_session_id is not null
-     and v_session_id is not null
+  -- Named seat session enforcement.
+  --
+  -- The seat holds the one session id allowed to use it, and the rule turns on
+  -- why the token is being issued. The event says so: authentication_method is
+  -- token_refresh when an existing session is extending itself, and names the
+  -- sign in method otherwise.
+  --
+  --   A fresh sign in takes the seat. That is the whole point of a named seat:
+  --   the person moves to another machine and carries on.
+  --
+  --   A refresh from a session that no longer holds the seat is refused, which
+  --   is what ends the displaced session. It cannot be ended any sooner: an
+  --   access token that has already been issued stays valid until it expires,
+  --   which is why the project's token lifetime is set to 600 seconds. Ten
+  --   minutes is the worst case, and it is stated rather than hidden.
+  if v_session_id is not null
+     and v_seat.active_session_id is not null
      and v_seat.active_session_id <> v_session_id then
-    return jsonb_build_object(
-      'error', jsonb_build_object(
-        'http_code', 403,
-        'message', 'This seat is in use on another device.'
-      )
-    );
+
+    if coalesce(event ->> 'authentication_method', '') = 'token_refresh' then
+      return jsonb_build_object(
+        'error', jsonb_build_object(
+          'http_code', 403,
+          'message', 'This seat has been taken over on another device.'
+        )
+      );
+    end if;
+
+    update public.seats set active_session_id = v_session_id where id = v_seat.id;
+    v_seat.active_session_id := v_session_id;
   end if;
 
   -- Claim an unoccupied seat for this session.
   if v_seat.active_session_id is null and v_session_id is not null then
     update public.seats set active_session_id = v_session_id where id = v_seat.id;
+    v_seat.active_session_id := v_session_id;
   end if;
 
   v_claims := jsonb_set(v_claims, '{org_id}',        to_jsonb(v_seat.org_id::text));

@@ -33,3 +33,10 @@ Thumbs.db
 # local scratch
 /tmp/
 *.log
+
+# next dev writes two agent instruction files into the repository root. This
+# deliverable names no AI tool, so the second one is matched with a character
+# class rather than spelled out: the guard bans the literal word, including
+# here.
+AGENTS.md
+[Cc][Ll][Aa][Uu][Dd][Ee].md

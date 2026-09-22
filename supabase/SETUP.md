@@ -12,21 +12,23 @@ is ignored from the first commit.
   secret. Settings, then JWT Keys, should show a current key with an
   asymmetric algorithm.
 
-## 2. Copy the keys into `.env.local`
+## 2. Fill in `.env.local`
 
-Copy `.env.example` to `.env.local` and fill in three values from the
-dashboard:
+Copy `.env.example` to `.env.local` and fill in all five values:
 
 - `NEXT_PUBLIC_SUPABASE_URL` from Settings, Data API, Project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from Settings, API Keys, the
   publishable key, which starts `sb_publishable_`.
 - `SUPABASE_SECRET_KEY` from Settings, API Keys, Secret keys, which starts
   `sb_secret_`.
+- `DATABASE_URL` from Settings, Database, connection string.
+- `DEMO_PASSWORD`, which you choose. It becomes the password of all nine demo
+  seat accounts and it is yours to hand out.
 
 Use the publishable and secret keys, not the legacy `anon` and `service_role`
-keys. The secret key is read by nothing in request handling; it exists for
-administrative scripts only, and the browser only ever receives the
-publishable key.
+keys. The secret key bypasses row level security, so nothing in request
+handling touches it: it is read by `scripts/seed-users.mjs` and by nothing
+else. The browser only ever receives the publishable key.
 
 ## 3. Run the schema
 
@@ -63,53 +65,65 @@ minutes is short enough to demonstrate and long enough not to be irritating.
 
 ## 6. Create the nine seat accounts
 
-Authentication, then Users, then Add user, then Create new user, with Auto
-Confirm User ticked, for each of these. Any password will do; use the same one
-for all nine so the demo is easy to drive.
+```bash
+npm run seed:users
+```
 
-```
-harborline.admin@fieldstone.example
-harborline.manager@fieldstone.example
-harborline.lo@fieldstone.example
-bayoucity.admin@fieldstone.example
-bayoucity.manager@fieldstone.example
-bayoucity.lo@fieldstone.example
-redoak.admin@fieldstone.example
-redoak.manager@fieldstone.example
-redoak.lo@fieldstone.example
-```
+The script reads the seat roster out of `public.seats`, so the accounts always
+match whatever the schema seeded and there is no second list to drift. It
+creates each account through the Auth admin API with the email already
+confirmed, sets the password from `DEMO_PASSWORD`, and updates an account that
+already exists rather than failing. It prints the addresses and the outcome,
+and it never prints a key or the password.
 
 The addresses use the reserved `.example` top level domain, so they cannot
-reach a real mailbox. Each seat row in the seed already names the account it
-belongs to in `login_email`, and the token hook binds the two the first time
-that account signs in. `harborline.admin@fieldstone.example` is the seat
-flagged `is_demo_admin`, which is the login that can look across tenants in
-the demo, and that flag is removed for production.
+reach a real mailbox. Each seat names its account in `login_email`, and the
+token hook binds the two the first time that account signs in.
+`harborline.admin@fieldstone.example` is the seat flagged `is_demo_admin`,
+the login that can look across tenants in the demo, and that flag is removed
+for production.
 
-## 7. Run the isolation tests
+## 7. Run the isolation tests against the project
 
-Paste the whole of `supabase/tests/isolation.sql` into the SQL editor and run
-it. It runs in one transaction and rolls back, so it leaves nothing behind. It
-returns one row per test. Every row must read `pass`.
+```bash
+npm run test:schema
+```
 
-Expected: 26 passed, 0 skipped, 0 failed.
+With `DATABASE_URL` set, this runs `supabase/schema.sql` and
+`supabase/tests/isolation.sql` against the project itself, with no emulation,
+and prints `mode: real`. The tests run in one transaction and roll back, so
+they leave nothing behind.
+
+Expected: **27 passed, 0 skipped, 0 failed**.
+
+The schema file drops and recreates the portal tables, which is what makes it
+re-runnable. To run only the tests against what is already there:
+
+```bash
+npm run test:schema -- --tests-only
+```
+
+The same file can be pasted into the SQL editor instead, which returns the
+same table of results.
 
 If a row reads `skipped` it names what is missing; the usual cause is running
-it before step 6, which leaves the three token hook tests unable to bind a
-seat to an account.
+before step 6, which leaves the token hook tests with no account to bind a
+seat to.
 
 If the run fails immediately with `permission denied to set role
-"authenticated"`, run `grant authenticated to postgres;` once and run the file
+"authenticated"`, run `grant authenticated to postgres;` once and run it
 again. The tests deliberately impersonate the `authenticated` role rather than
 running as the owner, because a test that runs as the owner proves nothing.
 
 ## What is checked before any of this
 
-The same two files are executed against a real PostgreSQL engine on every
-change, with `npm run test:schema`. That run needs no project, no container and
-no network: PGlite is PostgreSQL compiled to WebAssembly, and
-`supabase/tests/harness.sql` supplies the handful of platform objects the
-schema depends on. It is not a substitute for step 7, because the engine
-version differs from the managed project's and because the platform's own auth
-and storage implementations are emulated there. It does mean a syntax error or
-a broken policy is caught here rather than in the dashboard.
+With no `DATABASE_URL`, `npm run test:schema` runs the same two files against
+PGlite, which is PostgreSQL compiled to WebAssembly, with
+`supabase/tests/harness.sql` supplying the platform objects the schema depends
+on. It needs no project, container or network, and it prints `mode: local`.
+
+It is not a substitute for step 7: the engine version differs from the managed
+project's, and the platform's own auth and storage implementations are
+emulated. It does mean a syntax error or a broken policy is caught here rather
+than in the dashboard. Every evidence file under `docs/evidence` records which
+mode produced it.

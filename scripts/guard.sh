@@ -13,11 +13,21 @@ set -uo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
-TERMS=(
-  "re""idy" "san""more" "bo""ris" "san""chez" "mc""intyre" "hir""sch"
-  "up""work" "cla""ude" "anth""ropic" "chat""gpt" "cop""ilot" "ope""nai"
-  "gemi""ni" "cur""sor.sh"
+# Names of the client, its sister company, its people and the platform. These
+# must not appear in anything this repository produces, tracked or built.
+NAME_TERMS=(
+  "re""idy" "san""more" "bo""ris" "san""chez" "mc""intyre" "hir""sch" "up""work"
 )
+
+# AI tooling. These are banned in content this repository authors. They are not
+# applied to the build output, because a bundled dependency can carry such a
+# string in its own source or docstrings, which is neither ours to remove nor
+# evidence of anything. Check 1 and check 2 cover everything we write.
+TOOL_TERMS=(
+  "cla""ude" "anth""ropic" "chat""gpt" "cop""ilot" "ope""nai" "gemi""ni" "cur""sor.sh"
+)
+
+TERMS=("${NAME_TERMS[@]}" "${TOOL_TERMS[@]}")
 
 fail=0
 
@@ -80,14 +90,19 @@ if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
   fail=1
 fi
 
-# 6. The deployable build output, when one exists. .next/cache is excluded on
-# purpose: Turbopack's filesystem cache snapshots the environment variables of
-# whatever shell ran the build, so it can hold names from the operator's own
-# machine. That directory is gitignored and is never uploaded to a deployment,
-# while everything else under .next is the artefact that actually ships.
+# 6. The deployable build output, when one exists.
+#
+# Two directories are excluded, neither of which is the artefact:
+#   .next/cache   Turbopack's filesystem cache, which snapshots the
+#                 environment variables of whatever shell ran the build and so
+#                 can hold names from the operator's own machine.
+#   .next/dev     what next dev writes. Next.js 16 gives dev and build separate
+#                 output directories and only the build output is deployed.
+# Both are gitignored. Everything else under .next is what actually ships, and
+# it is scanned.
 if [ -d .next ]; then
-  for t in "${TERMS[@]}"; do
-    hits=$(find .next -type f -not -path ".next/cache/*" -exec grep -lia -- "$t" {} + 2>/dev/null || true)
+  for t in "${NAME_TERMS[@]}"; do
+    hits=$(find .next -type f -not -path ".next/cache/*" -not -path ".next/dev/*" -exec grep -lia -- "$t" {} + 2>/dev/null || true)
     if [ -n "$hits" ]; then
       echo "GUARD FAIL (build output): term '$t' in:"
       echo "$hits"
@@ -95,6 +110,20 @@ if [ -d .next ]; then
     fi
   done
 fi
+
+# 7. File and directory NAMES, not just contents. A file called after one of
+# these terms, or a directory named for a tool, is as visible to a reviewer as
+# a line inside a file, and checks 1 and 2 read contents only.
+paths=$(git ls-files)
+for t in "${TERMS[@]}"; do
+  hits=$(printf '%s
+' "$paths" | grep -i -- "$t" || true)
+  if [ -n "$hits" ]; then
+    echo "GUARD FAIL (path): term '$t' in the name of:"
+    echo "$hits"
+    fail=1
+  fi
+done
 
 if [ "$fail" -eq 0 ]; then
   echo "GUARD PASS: tracked and staged content clean"

@@ -455,6 +455,9 @@ declare
   v_session_2 uuid := gen_random_uuid();
   v_first     jsonb;
   v_second    jsonb;
+  v_third     jsonb;
+  v_fourth    jsonb;
+  v_holder    uuid;
 begin
   select id into v_uid from auth.users order by created_at limit 1;
 
@@ -465,6 +468,8 @@ begin
       ('token hook leaves the role claim alone', 'skipped',
        'same reason.'),
       ('one live session per named seat', 'skipped',
+       'same reason.'),
+      ('a fresh sign in takes the seat over', 'skipped',
        'same reason.');
     return;
   end if;
@@ -524,10 +529,51 @@ begin
   ));
 
   if v_second -> 'error' ->> 'http_code' <> '403' then
-    raise exception 'a second session was issued a token for an occupied seat: %', v_second;
+    raise exception 'a refresh was issued for a seat the session no longer holds: %', v_second;
   end if;
   insert into test_results (name, outcome, detail) values
-    ('one live session per named seat', 'pass', 'the second session was refused with http_code 403');
+    ('one live session per named seat', 'pass', 'the displaced refresh was refused with http_code 403');
+
+  -- A fresh sign in on a second device is a takeover, not a lockout. The seat
+  -- moves to the new session, and it is then the original session that can no
+  -- longer refresh. Without this the product would lock people out of their
+  -- own seat whenever they changed machine.
+  v_third := public.custom_access_token_hook(jsonb_build_object(
+    'user_id', v_uid::text,
+    'authentication_method', 'password',
+    'claims', jsonb_build_object(
+      'iss', 'test', 'aud', 'authenticated', 'exp', 0, 'iat', 0,
+      'sub', v_uid::text, 'role', 'authenticated', 'aal', 'aal1',
+      'session_id', v_session_2::text, 'email', 'seat@example.com',
+      'phone', '', 'is_anonymous', false)
+  ));
+
+  if v_third -> 'error' is not null then
+    raise exception 'a fresh sign in was refused instead of taking the seat: %', v_third -> 'error';
+  end if;
+
+  select active_session_id into v_holder from public.seats where id = v_seat;
+  if v_holder <> v_session_2 then
+    raise exception 'the seat did not move to the new session';
+  end if;
+
+  -- And now the original session is the one that cannot refresh.
+  v_fourth := public.custom_access_token_hook(jsonb_build_object(
+    'user_id', v_uid::text,
+    'authentication_method', 'token_refresh',
+    'claims', jsonb_build_object(
+      'iss', 'test', 'aud', 'authenticated', 'exp', 0, 'iat', 0,
+      'sub', v_uid::text, 'role', 'authenticated', 'aal', 'aal1',
+      'session_id', v_session_1::text, 'email', 'seat@example.com',
+      'phone', '', 'is_anonymous', false)
+  ));
+
+  if v_fourth -> 'error' ->> 'http_code' <> '403' then
+    raise exception 'the displaced original session could still refresh: %', v_fourth;
+  end if;
+
+  insert into test_results (name, outcome, detail) values
+    ('a fresh sign in takes the seat over', 'pass', 'the seat moved, and the original session can no longer refresh');
 end;
 $$;
 

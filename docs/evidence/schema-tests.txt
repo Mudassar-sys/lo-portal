@@ -1,20 +1,22 @@
 $ npm run test:schema
-captured 2026-09-22T03:44:15Z
+captured 2026-09-22T04:44:56Z
 ---
 
 > lo-portal@0.1.0 test:schema
 > node scripts/test-schema.mjs
 
+mode: local, against a local PGlite engine with supabase/tests/harness.sql
 PostgreSQL 18.3 (PGlite 0.5.8) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit
 
-ok    harness          supabase/tests/harness.sql  (18ms)
-ok    schema           supabase/schema.sql  (75ms)
+ok    harness          supabase/tests/harness.sql  (20ms)
+ok    schema           supabase/schema.sql  (84ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
-ok    isolation tests  supabase/tests/isolation.sql  (73ms)
+
+ok    isolation tests  supabase/tests/isolation.sql  (90ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -35,7 +37,8 @@ ok    isolation tests  supabase/tests/isolation.sql  (73ms)
   pass  unknown intake token is refused                  the function raises and writes nothing
   pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
   pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
-  pass  one live session per named seat                  the second session was refused with http_code 403
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
   pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
   pass  every policy names its role                      no policy applies to public
   pass  no policy reads user_metadata                    checked public and storage policies
@@ -43,6 +46,6 @@ ok    isolation tests  supabase/tests/isolation.sql  (73ms)
   pass  anon has no table privileges                     the public intake runs through one function instead
   pass  audit_log has no write grant for users           select only, written by the trigger
 
-26 passed, 0 skipped, 0 failed
+27 passed, 0 skipped, 0 failed  (mode: local)
 ---
 exit=0

@@ -51,3 +51,33 @@ GUARD PASS: tracked and staged content clean
 
 $ npm run guard:selftest
 SELFTEST PASS: every guard check fires on a poisoned tree and clears on a clean one
+
+
+----------------------------------------------------------------------
+Update, 22 Sep 2026, after the first `next dev` run.
+
+`next dev` wrote two agent instruction files into the repository root, one of
+them named after an AI tool, and they were not caught by review: the guard
+caught them. Fixed at the source with `agentRules: false` in the Next config,
+the files deleted, and the names added to .gitignore.
+
+Two scope corrections came out of the same run, both recorded in RESEARCH.md:
+
+1. Check 6 excludes `.next/dev` as well as `.next/cache`. Next.js 16 gives dev
+   and build separate output directories and only the build output ships.
+
+2. Check 6 scans the deployable output for the client, sister company, person
+   and platform names only, not for AI tool names. A vendored dependency
+   carries such a string in a docstring inside its own source map, which is
+   not ours to remove and is not evidence of anything. Everything this
+   repository authors is still checked for both sets.
+
+The guard also now checks file and directory names (check 7), because a file
+named after a banned term was invisible to a content scan. The self test
+covers it.
+
+Fresh production build after those changes:
+
+$ npm run build     -> compiled successfully
+$ npm run guard     -> GUARD PASS: tracked and staged content clean
+$ npm run guard:selftest -> SELFTEST PASS
