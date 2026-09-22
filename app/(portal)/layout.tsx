@@ -5,6 +5,7 @@ import { signOut } from "@/app/login/actions";
 
 const NAV = [
   { href: "/", label: "Overview" },
+  { href: "/borrowers", label: "Borrowers" },
   { href: "/sessions", label: "Sessions" },
 ] as const;
 

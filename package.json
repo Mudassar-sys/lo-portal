@@ -15,7 +15,9 @@
     "test:schema": "node scripts/test-schema.mjs",
     "seed:users": "node scripts/seed-users.mjs",
     "provision": "node scripts/provision.mjs",
-    "verify:auth": "node scripts/verify-auth.mjs"
+    "verify:auth": "node scripts/verify-auth.mjs",
+    "seed:documents": "node scripts/seed-documents.mjs",
+    "verify:borrowers": "node scripts/verify-borrowers.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
