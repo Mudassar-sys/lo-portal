@@ -22,7 +22,8 @@
     "verify:scenarios": "node scripts/verify-scenarios.mjs",
     "sweep": "node scripts/secret-sweep.mjs",
     "vercel:env": "node scripts/vercel-env.mjs",
-    "verify:scale": "node scripts/verify-scale.mjs"
+    "verify:scale": "node scripts/verify-scale.mjs",
+    "record": "node scripts/record-walkthrough.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

@@ -53,6 +53,15 @@ evidence that the tests bite.
 | 15 | **The platform's default privileges made the column level grants useless.** `anon` and `authenticated` each held SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on every table in the public schema. A GRANT only ever adds, so the narrow grants sat on top of a wide one and restricted nothing: an org_admin could set the premium tier and, worse, the flag that reaches the cross tenant demo switch. Row level security still denied `anon` every row, so no data was reachable, but privileges and policies are two gates and one was open. | The isolation tests **failed on the real project while passing locally**. The local engine had no such default privileges to inherit. | The schema now revokes all privileges on the ten tables from `anon`, `authenticated` and `public` before granting. The test harness was taught the same default privileges, and with that line in place and the revokes absent it reproduced the real failure, so the local run catches this class of defect from now on. | `docs/evidence/privilege-defect-and-fix.txt` |
 | 16 | **A `"use server"` module may export only async functions, and it fails quietly.** Exporting `BATCH_SIZE` from an actions file failed the build loudly. Exporting `ALLOWED_TYPES` compiled, turned into a server function stub in the browser, and broke the first document upload at run time with "ALLOWED_TYPES.includes is not a function". | The build for the first case. The browser, on the first upload, for the second. | Shared constants moved to `lib/borrowers.ts` and `lib/documents.ts`. | `RESEARCH.md`, sections "Three things the browser run taught" and "A second, quieter case of the same server module rule" |
 
+## Deployment
+
+| Claim | How it is proved | Evidence |
+| --- | --- | --- |
+| Security headers are sent by the application, not the host. | `npx vercel curl -I` against the production deployment. HSTS, CSP frame-ancestors none, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy and COOP all present. They are set in `next.config.ts`, so they travel with the application wherever it is deployed. | `docs/evidence/live-headers.txt` |
+| The deployment carries no secret. | Only `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are set on the project, for production and preview. `DATABASE_URL`, `SUPABASE_SECRET_KEY`, `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_REF` and `DEMO_PASSWORD` are tooling only and are deliberately not set there. `npx vercel env ls` lists the names. | Item 10 above |
+| Provisioning is idempotent and asserted. | `npm run provision` twice in a row: 9 assertions passed, 0 failed, both times. It reads the hook, the token lifetime, the site URL, the redirect allow list and the bucket back off the project rather than trusting the write. | `docs/evidence/provision.txt` |
+| A branch builds its own preview deployment. | Pushed branch `preview-check`, preview built in 20s and reported Ready by `npx vercel ls lo-portal`. | Report 7 |
+
 ## What is not proved here
 
 Stated so that nothing above is read as more than it is.
@@ -66,6 +75,13 @@ Stated so that nothing above is read as more than it is.
   above is from the real project, and each evidence file records which mode
   produced it.
 - Load beyond 5,000 rows in one tenant has not been measured.
+- The browser suites and the walkthrough were run against the production build
+  of this application, at `next build` plus `next start`, not against the
+  deployed URL. The deployment is behind Vercel Deployment Protection, which
+  answers an anonymous request with Vercel's own login page. Re-running them
+  against the deployed URL is one environment variable once that is lifted:
+  `VERIFY_BASE_URL=https://... npm run verify:auth`. The live headers above
+  are the exception: those were captured from the deployment itself.
 
 ## Sources
 

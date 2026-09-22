@@ -197,3 +197,20 @@ version matched to the pinned release; lines citing it name the file.
 ## How loading.tsx is actually observed
 
 - Three attempts got this wrong before it was right, so the method is written down. loading.tsx is the segment's Suspense fallback and is painted while the server streams. Holding the navigation response does not reveal it: the client router waits for the response to begin before committing, so the browser stays on the previous page and nothing is painted. Throttling the client navigation does the same. What does reveal it is a document request over a slow connection, because the shell then arrives first, paints the fallback, and the content follows. The verification uses CDP network emulation for that one step. https://nextjs.org/docs/app/api-reference/file-conventions/loading - 22 Sep 2026
+
+## Deploying
+
+- `vercel env add [name] [environment]` takes the value on stdin, and the documentation warns against the obvious shortcut: "echo [value] | vercel env add [name] [environment] ... Warning: this will save the value in bash history, so this is not recommend". scripts/vercel-env.mjs writes to the child process's stdin instead, so no value reaches a shell, a log or a terminal. https://vercel.com/docs/cli/env - 22 Sep 2026
+- Environment variables are scoped per environment, so production and preview are set separately. Only the two variables the runtime reads are set; the tooling variables are deliberately absent from the deployment. https://vercel.com/docs/cli/env - 22 Sep 2026
+- `vercel curl` performs the documented automation bypass for a deployment behind Deployment Protection, which is how the live headers were captured while the deployment is still gated. `npx vercel --help` - 22 Sep 2026
+- Security headers are set in the Next config with a `headers()` function returning source and header pairs. HSTS is the documented `max-age=63072000; includeSubDomains; preload`, and the docs note that X-Frame-Options "has been superseded by CSP's frame-ancestors option", so both are sent. node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/headers.md. https://nextjs.org/docs/app/api-reference/config/next-config-js/headers - 22 Sep 2026
+
+## Supabase redirect configuration
+
+- The Site URL "defines the default redirect URL when no redirectTo is specified" and should be changed from localhost to the production URL, because it is "critical for email confirmations and password resets". https://supabase.com/docs/guides/auth/redirect-urls - 22 Sep 2026
+- Wildcards are supported for preview URLs: `*` matches a sequence of non separator characters and `**` matches any sequence, where the separators are `.` and `/`. So a host's preview URLs need the globstar form, while "we recommend setting the exact redirect URL path for your site URL in production". Both shapes are set. https://supabase.com/docs/guides/auth/redirect-urls - 22 Sep 2026
+- The Management API fields are `site_url` (string) and `uri_allow_list` (string, comma separated), on the same `PATCH /v1/projects/{ref}/config/auth` endpoint as the hook and the token lifetime. https://supabase.com/docs/reference/api/v1-update-auth-service-config - 22 Sep 2026
+
+## Recording the walkthrough
+
+- A video is recorded by passing `recordVideo: { dir, size }` to `browser.newContext`, and the file is only written when the context is closed: "Videos are saved upon browser context closure". The path is read with `page.video().path()`, and the recorder awaits the close before looking for the file. https://playwright.dev/docs/videos - 22 Sep 2026
