@@ -1,5 +1,5 @@
 Provisioning of the project, run by scripts/provision.mjs.
-captured 2026-09-22T17:00:23.307Z
+captured 2026-09-22T19:04:33.788Z
 
 The project reference, the project URL, the database URL, the personal
 access token and the secret key are replaced with <redacted> before this
@@ -27,11 +27,11 @@ step 4  read back and assert
           expected 600
           observed 600
   pass  site_url
-          expected "https://lo-portal-mudassar-sys-projects.vercel.app"
-          observed "https://lo-portal-mudassar-sys-projects.vercel.app"
+          expected "https://fieldstone-portal.vercel.app"
+          observed "https://fieldstone-portal.vercel.app"
   pass  uri_allow_list
-          expected ["http://localhost:3000/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**","https://lo-portal-mudassar-sys-projects.vercel.app/**"]
-          observed ["http://localhost:3000/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**","https://lo-portal-mudassar-sys-projects.vercel.app/**"]
+          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
   pass  bucket id
           expected "borrower-docs"
           observed "borrower-docs"

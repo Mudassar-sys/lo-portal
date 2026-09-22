@@ -30,6 +30,11 @@ cd "$tmp"
 git init -q -b main .
 git config user.email "selftest@example.invalid"
 git config user.name "selftest"
+# Otherwise git prints a line naming each staged file, and the poisoned file
+# names are the very terms the guard bans, so a transcript of this test
+# becomes something the guard then refuses to commit.
+git config core.autocrlf false
+git config core.safecrlf false
 
 NAME="Re""idy"
 EMDASH="$(printf '\xe2\x80\x94')"

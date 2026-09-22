@@ -11,7 +11,6 @@
 //        VERIFY_BASE_URL=https://... npm run record
 
 import { chromium } from "playwright-core";
-import { createClient } from "@supabase/supabase-js";
 import { mkdirSync, renameSync, rmSync, statSync, existsSync } from "node:fs";
 
 process.loadEnvFile(".env.local");
@@ -21,12 +20,6 @@ const PASSWORD = process.env.DEMO_PASSWORD;
 const OUT = "docs/demo";
 const SEAT_ONE = "harborline.lo@fieldstone.example";
 const SEAT_TWO = "bayoucity.manager@fieldstone.example";
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
 
 mkdirSync(OUT, { recursive: true });
 rmSync(`${OUT}/raw`, { recursive: true, force: true });

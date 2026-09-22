@@ -30,6 +30,15 @@ TOOL_TERMS=(
 TERMS=("${NAME_TERMS[@]}" "${TOOL_TERMS[@]}")
 
 fail=0
+# Other tools need the assembled list so they can redact it out of their own
+# transcripts. A captured log that quotes a guard failure would otherwise
+# contain the very term the guard exists to keep out of this repository.
+if [ "${1:-}" = "--print-terms" ]; then
+  printf '%s
+' "${TERMS[@]}"
+  exit 0
+fi
+
 
 # 1. Tracked files in the working tree.
 for t in "${TERMS[@]}"; do

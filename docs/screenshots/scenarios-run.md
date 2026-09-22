@@ -15,7 +15,7 @@
   pass  running the same scenario twice produces the same quotes
 
 3. document upload, accepted and refused
-  pass  the document was added, 0 then 1
+  pass  the document was added, 2 then 3
   pass  the upload wrote an audit row with an acting seat: documents.insert, seat present
         docs/screenshots/32-document-upload-accepted-desktop.png
   pass  a text file is refused: text/plain is not accepted. Use a PDF, a PNG or a JPEG.

@@ -1,0 +1,1645 @@
+Final verification run
+Attempt 5
+started 2026-09-22T19:02:26.098Z
+browser suites against http://localhost:3100
+
+Order is fixed: secrets, guards, static checks, build, database, then the
+browser. Anything that changes data resets the seed before the next step.
+
+========================================================================
+STEP: secret sweep, full git history
+$ npm run sweep
+========================================================================
+
+> lo-portal@0.1.0 sweep
+> node scripts/secret-sweep.mjs
+
+Secret sweep of the full git history.
+captured 2026-09-22T19:02:27.951Z
+
+Commands:
+  git log --all -p --no-color        # every commit on every ref, with content
+  git rev-list --all --count         # how many commits that is
+
+Scanned 16 commits and 110 tracked files.
+
+Shape patterns:
+  a secret key                           mentions    5   value shaped 0
+  a personal access token                mentions    2   value shaped 0
+  a postgres connection string           mentions    0   value shaped 0
+  a postgres connection string, short form mentions    0   value shaped 0
+  a JSON web token                       mentions    0   value shaped 0
+  a legacy service role reference        mentions    0   value shaped 0
+
+Literal values from .env.local:
+  NEXT_PUBLIC_SUPABASE_URL               occurrences in history 0
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY   occurrences in history 0
+  SUPABASE_SECRET_KEY                    occurrences in history 0
+  DATABASE_URL                           occurrences in history 0
+  DEMO_PASSWORD                          occurrences in history 0
+  SUPABASE_ACCESS_TOKEN                  occurrences in history 0
+  SUPABASE_PROJECT_REF                   occurrences in history 0
+  VERCEL_OIDC_TOKEN                      occurrences in history 0
+
+RESULT: clean. No secret value appears anywhere in the history.
+--- secret sweep, full git history: ok ---
+
+========================================================================
+STEP: repository guard
+$ npm run guard
+========================================================================
+
+> lo-portal@0.1.0 guard
+> bash scripts/guard.sh
+
+GUARD PASS: tracked and staged content clean
+--- repository guard: ok ---
+
+========================================================================
+STEP: guard self test
+$ npm run guard:selftest
+========================================================================
+
+> lo-portal@0.1.0 guard:selftest
+> bash scripts/guard-selftest.sh
+
+SELFTEST PASS: every guard check fires on a poisoned tree and clears on a clean one
+--- guard self test: ok ---
+
+========================================================================
+STEP: eslint
+$ npx --no-install eslint .
+========================================================================
+
+--- eslint: ok ---
+
+========================================================================
+STEP: typescript
+$ npx --no-install tsc --noEmit
+========================================================================
+
+--- typescript: ok ---
+
+========================================================================
+STEP: production build
+$ npm run build
+========================================================================
+
+> lo-portal@0.1.0 build
+> next build
+
+▲ Next.js 16.3.5 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 74ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 2.9s
+  Running TypeScript ...
+  Finished TypeScript in 4.0s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/15) ...
+  Generating static pages using 7 workers (3/15) 
+  Generating static pages using 7 workers (7/15) 
+  Generating static pages using 7 workers (11/15) 
+✓ Generating static pages using 7 workers (15/15) in 879ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /api/mock/matching
+├ ƒ /audit
+├ ƒ /borrowers
+├ ƒ /borrowers/[id]
+├ ƒ /borrowers/import
+├ ƒ /intake/[token]
+├ ƒ /ledger
+├ ○ /login
+├ ƒ /property-intelligence
+├ ƒ /scenarios
+├ ƒ /scenarios/[id]
+├ ƒ /scenarios/new
+├ ƒ /sessions
+├ ƒ /settings
+└ ƒ /submissions
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+--- production build: ok ---
+
+starting a production server on 3100
+server is answering
+
+========================================================================
+STEP: isolation tests, real project
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1072ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (475ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- isolation tests, real project: ok ---
+
+========================================================================
+STEP: provision, idempotency pass 1
+$ npm run provision
+========================================================================
+
+> lo-portal@0.1.0 provision
+> node scripts/provision.mjs
+
+step 1  schema
+  skipped, pass --apply-schema to run supabase/schema.sql
+
+step 2  auth config: access token hook and token lifetime
+  PATCH /v1/projects/<redacted>/config/auth sent
+  site URL and 3 redirect patterns included
+
+step 3  storage bucket
+  borrower-docs already existed, settings reapplied
+
+step 4  read back and assert
+  pass  hook_custom_access_token_enabled
+          expected true
+          observed true
+  pass  hook_custom_access_token_uri
+          expected "pg-functions://postgres/public/custom_access_token_hook"
+          observed "pg-functions://postgres/public/custom_access_token_hook"
+  pass  jwt_exp
+          expected 600
+          observed 600
+  pass  site_url
+          expected "https://fieldstone-portal.vercel.app"
+          observed "https://fieldstone-portal.vercel.app"
+  pass  uri_allow_list
+          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+  pass  bucket id
+          expected "borrower-docs"
+          observed "borrower-docs"
+  pass  bucket is private
+          expected false
+          observed false
+  pass  bucket allowed_mime_types
+          expected ["application/pdf","image/png","image/jpeg"]
+          observed ["application/pdf","image/png","image/jpeg"]
+  pass  bucket file_size_limit
+          expected 10485760
+          observed 10485760
+
+9 assertions passed, 0 failed
+
+evidence written to docs/evidence/provision.txt
+--- provision, idempotency pass 1: ok ---
+
+========================================================================
+STEP: provision, idempotency pass 2
+$ npm run provision
+========================================================================
+
+> lo-portal@0.1.0 provision
+> node scripts/provision.mjs
+
+step 1  schema
+  skipped, pass --apply-schema to run supabase/schema.sql
+
+step 2  auth config: access token hook and token lifetime
+  PATCH /v1/projects/<redacted>/config/auth sent
+  site URL and 3 redirect patterns included
+
+step 3  storage bucket
+  borrower-docs already existed, settings reapplied
+
+step 4  read back and assert
+  pass  hook_custom_access_token_enabled
+          expected true
+          observed true
+  pass  hook_custom_access_token_uri
+          expected "pg-functions://postgres/public/custom_access_token_hook"
+          observed "pg-functions://postgres/public/custom_access_token_hook"
+  pass  jwt_exp
+          expected 600
+          observed 600
+  pass  site_url
+          expected "https://fieldstone-portal.vercel.app"
+          observed "https://fieldstone-portal.vercel.app"
+  pass  uri_allow_list
+          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+  pass  bucket id
+          expected "borrower-docs"
+          observed "borrower-docs"
+  pass  bucket is private
+          expected false
+          observed false
+  pass  bucket allowed_mime_types
+          expected ["application/pdf","image/png","image/jpeg"]
+          observed ["application/pdf","image/png","image/jpeg"]
+  pass  bucket file_size_limit
+          expected 10485760
+          observed 10485760
+
+9 assertions passed, 0 failed
+
+evidence written to docs/evidence/provision.txt
+--- provision, idempotency pass 2: ok ---
+
+========================================================================
+STEP: upload refusals, browser bypassed
+$ npm run verify:uploads
+========================================================================
+
+> lo-portal@0.1.0 verify:uploads
+> node scripts/verify-uploads.mjs
+
+Upload negative tests, run as a signed in loan officer seat.
+captured 2026-09-22T19:04:37.295Z
+
+1. a file over the 10 MB bucket limit
+        error: The object exceeded the maximum allowed size
+  pass  storage refused an 11 MB file
+
+2. a type the bucket does not allow
+        error: mime type text/plain is not supported
+  pass  storage refused a text/plain file
+
+3. a path inside another organisation's folder
+        error: new row violates row-level security policy
+  pass  storage refused a write into another tenant's folder
+
+4. reading another organisation's folder
+        entries returned: 0
+  pass  listing another tenant's folder returns nothing
+
+5. and a legitimate upload still works
+  pass  a PDF in the seat's own folder is accepted: accepted
+        removed again, so the run leaves nothing behind
+
+all checks passed
+
+Note on where each refusal came from: none of these were stopped by
+application code. One and two are the bucket's own file_size_limit and
+allowed_mime_types, set by scripts/provision.mjs. Three and four are the
+row level security policies on storage.objects, which compare the first
+segment of the object path against the org_id claim in the caller's token.
+--- upload refusals, browser bypassed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: auth suite, pass 1
+$ npm run verify:auth
+========================================================================
+
+> lo-portal@0.1.0 verify:auth
+> node scripts/verify-auth.mjs
+
+1. sign in, and branding on first paint
+  pass  the overview names the seat's own tenant: Harborline Mortgage Group
+        tenant accent on first paint: rgb(79, 124, 255)
+        docs/screenshots/01-sign-in-overview-harborline.png
+  pass  the tiles show this tenant's own totals: 15, 10, 6, 8
+
+2. the seat is held by this device
+  pass  exactly one seat row reads 'this device'
+        seat active_session_id 8e4ae501-f1e5-4bc6-93ee-5d296683dea4
+        docs/screenshots/02-sessions-seat-held-by-this-device.png
+
+3. a second device takes the seat over
+  pass  the seat moved to the second device's session
+        seat active_session_id 2150a012-992c-4fb0-bd14-3307418a39dd
+        docs/screenshots/03-second-device-took-the-seat.png
+  pass  the first device no longer reads 'this device'
+  pass  the first device now sees the seat as 'in use elsewhere'
+        docs/screenshots/04-first-device-sees-the-seat-taken.png
+
+4. sign out other devices
+  pass  the action reports back on screen
+  pass  the seat returned to the device that pressed the button
+        seat active_session_id 8e4ae501-f1e5-4bc6-93ee-5d296683dea4
+        docs/screenshots/05-sign-out-other-devices.png
+
+5. the other device is genuinely revoked
+  pass  device B still holds its session cookie
+  pass  device B's refresh token was recovered from its cookie jar
+  pass  device B can no longer obtain a token: Invalid Refresh Token: Refresh Token Not Found
+
+6. white labelling, a second tenant on the same deployment
+  pass  a different tenant, branded differently: Bayou City Lending Co
+  pass  and a different accent on first paint: rgb(22, 163, 74)
+        docs/screenshots/06-second-tenant-branding.png
+
+7. signed out means signed out
+  pass  a signed out browser asking for a portal route lands on sign in
+        docs/screenshots/07-signed-out-redirected-to-login.png
+
+all checks passed
+--- auth suite, pass 1: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1396ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (441ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: auth suite, pass 2
+$ npm run verify:auth
+========================================================================
+
+> lo-portal@0.1.0 verify:auth
+> node scripts/verify-auth.mjs
+
+1. sign in, and branding on first paint
+  pass  the overview names the seat's own tenant: Harborline Mortgage Group
+        tenant accent on first paint: rgb(79, 124, 255)
+        docs/screenshots/01-sign-in-overview-harborline.png
+  pass  the tiles show this tenant's own totals: 15, 10, 6, 8
+
+2. the seat is held by this device
+  pass  exactly one seat row reads 'this device'
+        seat active_session_id b4733320-6cd9-461e-8dcb-138d41d51c47
+        docs/screenshots/02-sessions-seat-held-by-this-device.png
+
+3. a second device takes the seat over
+  pass  the seat moved to the second device's session
+        seat active_session_id ced2716b-5571-41ed-a2ef-15a01439378e
+        docs/screenshots/03-second-device-took-the-seat.png
+  pass  the first device no longer reads 'this device'
+  pass  the first device now sees the seat as 'in use elsewhere'
+        docs/screenshots/04-first-device-sees-the-seat-taken.png
+
+4. sign out other devices
+  pass  the action reports back on screen
+  pass  the seat returned to the device that pressed the button
+        seat active_session_id b4733320-6cd9-461e-8dcb-138d41d51c47
+        docs/screenshots/05-sign-out-other-devices.png
+
+5. the other device is genuinely revoked
+  pass  device B still holds its session cookie
+  pass  device B's refresh token was recovered from its cookie jar
+  pass  device B can no longer obtain a token: Invalid Refresh Token: Refresh Token Not Found
+
+6. white labelling, a second tenant on the same deployment
+  pass  a different tenant, branded differently: Bayou City Lending Co
+  pass  and a different accent on first paint: rgb(22, 163, 74)
+        docs/screenshots/06-second-tenant-branding.png
+
+7. signed out means signed out
+  pass  a signed out browser asking for a portal route lands on sign in
+        docs/screenshots/07-signed-out-redirected-to-login.png
+
+all checks passed
+--- auth suite, pass 2: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1445ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (401ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: borrowers suite, pass 1
+$ npm run verify:borrowers
+========================================================================
+
+> lo-portal@0.1.0 verify:borrowers
+> node scripts/verify-borrowers.mjs
+
+1. borrowers list, populated
+  pass  the list shows this tenant's 15 borrowers, saw 15
+        docs/screenshots/10-borrowers-list-desktop.png
+  pass  the 390 pixel list shows the same seed state, 15 entries
+  pass  the list does not scroll sideways at 390 pixels
+        docs/screenshots/19-borrowers-list-390.png
+
+2. search and filter
+  pass  searching for one borrower returns 1 row, saw 1
+  pass  a search term made of filter punctuation is treated as text, 0 rows and no error
+        docs/screenshots/11-borrowers-search-empty-result.png
+
+3. borrower detail
+  pass  the documents panel lists 2 objects from the tenant's storage folder
+  pass  the activity panel renders 2 rows from the audit table
+        docs/screenshots/12-borrower-detail-desktop.png
+  pass  the signed document link resolves, HTTP 200
+  pass  the link is a signed URL rather than a public object path
+
+4. CSV import, preview and per row errors
+        ready 6, already held 1, repeated 1, rows with errors 4
+  pass  6 rows are importable, saw 6
+  pass  1 row is already held by this organisation, saw 1
+  pass  1 row is repeated inside the file, saw 1
+  pass  4 lines carry errors, saw 4
+        docs/screenshots/13-csv-import-preview-desktop.png
+  pass  the error list is shown with the line numbers from the file
+
+5. CSV import, commit and summary
+  pass  the summary reports 6 inserted, saw 6
+        docs/screenshots/14-csv-import-summary-desktop.png
+  pass  the tenant now holds 21 borrowers, saw 21
+
+6. loading state
+  pass  the skeleton from loading.tsx is on screen, 1 placeholders
+        docs/screenshots/15-borrowers-loading-desktop.png
+7. cross tenant: a different organisation sees none of this
+  pass  the second organisation sees its own 14 borrowers, saw 14
+  pass  none of the first tenant's borrowers appear, 0 leaked
+        docs/screenshots/16-cross-tenant-other-org-list-desktop.png
+  pass  the first tenant's borrower URL renders no profile for the second tenant (404 markers: 0)
+        docs/screenshots/17-cross-tenant-direct-url-desktop.png
+  pass  duplicate detection is tenant scoped: the second organisation holds none of them, saw 0
+        docs/screenshots/18-cross-tenant-import-no-duplicates-desktop.png
+
+8. 390 pixel layouts
+        docs/screenshots/20-borrower-detail-390.png
+  pass  the import preview does not scroll sideways at 390 pixels
+        docs/screenshots/21-csv-import-preview-390.png
+
+8b. pagination, once a tenant holds more than one page
+  pass  the pager appears past 25 rows, page label reads "1 of 3"
+        docs/screenshots/24-borrowers-pagination-desktop.png
+
+9. the empty state, on a tenant with nothing in it
+  pass  an organisation with no borrowers gets the empty state, not a blank table
+        docs/screenshots/22-borrowers-empty-desktop.png
+        docs/screenshots/23-borrowers-empty-390.png
+
+all checks passed
+
+Data note: this run imports 6 borrowers into the first organisation and
+empties the third. Re-running npm run test:schema reapplies the schema and
+restores the seed, which is how the isolation counts go back to 15, 14, 11.
+--- borrowers suite, pass 1: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1055ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (355ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: borrowers suite, pass 2
+$ npm run verify:borrowers
+========================================================================
+
+> lo-portal@0.1.0 verify:borrowers
+> node scripts/verify-borrowers.mjs
+
+1. borrowers list, populated
+  pass  the list shows this tenant's 15 borrowers, saw 15
+        docs/screenshots/10-borrowers-list-desktop.png
+  pass  the 390 pixel list shows the same seed state, 15 entries
+  pass  the list does not scroll sideways at 390 pixels
+        docs/screenshots/19-borrowers-list-390.png
+
+2. search and filter
+  pass  searching for one borrower returns 1 row, saw 1
+  pass  a search term made of filter punctuation is treated as text, 0 rows and no error
+        docs/screenshots/11-borrowers-search-empty-result.png
+
+3. borrower detail
+  pass  the documents panel lists 2 objects from the tenant's storage folder
+  pass  the activity panel renders 2 rows from the audit table
+        docs/screenshots/12-borrower-detail-desktop.png
+  pass  the signed document link resolves, HTTP 200
+  pass  the link is a signed URL rather than a public object path
+
+4. CSV import, preview and per row errors
+        ready 6, already held 1, repeated 1, rows with errors 4
+  pass  6 rows are importable, saw 6
+  pass  1 row is already held by this organisation, saw 1
+  pass  1 row is repeated inside the file, saw 1
+  pass  4 lines carry errors, saw 4
+        docs/screenshots/13-csv-import-preview-desktop.png
+  pass  the error list is shown with the line numbers from the file
+
+5. CSV import, commit and summary
+  pass  the summary reports 6 inserted, saw 6
+        docs/screenshots/14-csv-import-summary-desktop.png
+  pass  the tenant now holds 21 borrowers, saw 21
+
+6. loading state
+  pass  the skeleton from loading.tsx is on screen, 5 placeholders
+        docs/screenshots/15-borrowers-loading-desktop.png
+7. cross tenant: a different organisation sees none of this
+  pass  the second organisation sees its own 14 borrowers, saw 14
+  pass  none of the first tenant's borrowers appear, 0 leaked
+        docs/screenshots/16-cross-tenant-other-org-list-desktop.png
+  pass  the first tenant's borrower URL renders no profile for the second tenant (404 markers: 0)
+        docs/screenshots/17-cross-tenant-direct-url-desktop.png
+  pass  duplicate detection is tenant scoped: the second organisation holds none of them, saw 0
+        docs/screenshots/18-cross-tenant-import-no-duplicates-desktop.png
+
+8. 390 pixel layouts
+        docs/screenshots/20-borrower-detail-390.png
+  pass  the import preview does not scroll sideways at 390 pixels
+        docs/screenshots/21-csv-import-preview-390.png
+
+8b. pagination, once a tenant holds more than one page
+  pass  the pager appears past 25 rows, page label reads "1 of 3"
+        docs/screenshots/24-borrowers-pagination-desktop.png
+
+9. the empty state, on a tenant with nothing in it
+  pass  an organisation with no borrowers gets the empty state, not a blank table
+        docs/screenshots/22-borrowers-empty-desktop.png
+        docs/screenshots/23-borrowers-empty-390.png
+
+all checks passed
+
+Data note: this run imports 6 borrowers into the first organisation and
+empties the third. Re-running npm run test:schema reapplies the schema and
+restores the seed, which is how the isolation counts go back to 15, 14, 11.
+--- borrowers suite, pass 2: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (895ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (282ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: scenarios suite, pass 1
+$ npm run verify:scenarios
+========================================================================
+
+> lo-portal@0.1.0 verify:scenarios
+> node scripts/verify-scenarios.mjs
+
+1. scenario builder
+  pass  the builder works out the loan as you type: $492,000
+        docs/screenshots/30-scenario-builder-desktop.png
+
+2. results
+  pass  the panel returned 3 lenders that can take the file
+  pass  the cheapest quote is marked
+  pass  each quote says why it matched, 12 reasons in total
+  pass  the lenders that could not take it are listed with what would change that
+  pass  the screen states the source: Quotes are stored as ranges against an alias and cannot be edited after the fact
+        docs/screenshots/31-scenario-results-desktop.png
+  pass  running the same scenario twice produces the same quotes
+
+3. document upload, accepted and refused
+  pass  the document was added, 2 then 3
+  pass  the upload wrote an audit row with an acting seat: documents.insert, seat present
+        docs/screenshots/32-document-upload-accepted-desktop.png
+  pass  a text file is refused: text/plain is not accepted. Use a PDF, a PNG or a JPEG.
+        docs/screenshots/33-document-upload-refused-desktop.png
+
+4. premium panel, on a tenant that has the tier
+  pass  the premium panel renders for a premium tenant, 6 valuations
+        docs/screenshots/34-premium-panel-allowed-desktop.png
+
+5. premium panel, on a tenant that does not
+  pass  a non premium tenant is denied
+  pass  no premium data is present in the page sent to a non premium tenant
+        docs/screenshots/35-premium-panel-denied-desktop.png
+
+6. cross tenant on the scenario surface
+  pass  another tenant's scenario URL renders no scenario
+        docs/screenshots/36-cross-tenant-scenario-url-desktop.png
+
+7. 390 pixel layouts
+        docs/screenshots/37-scenario-builder-390.png
+  pass  the results screen does not scroll sideways at 390 pixels
+        docs/screenshots/38-scenario-results-390.png
+        docs/screenshots/39-premium-panel-allowed-390.png
+        docs/screenshots/40-premium-panel-denied-390.png
+
+all checks passed
+--- scenarios suite, pass 1: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1095ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (306ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: scenarios suite, pass 2
+$ npm run verify:scenarios
+========================================================================
+
+> lo-portal@0.1.0 verify:scenarios
+> node scripts/verify-scenarios.mjs
+
+1. scenario builder
+  pass  the builder works out the loan as you type: $492,000
+        docs/screenshots/30-scenario-builder-desktop.png
+
+2. results
+  pass  the panel returned 3 lenders that can take the file
+  pass  the cheapest quote is marked
+  pass  each quote says why it matched, 12 reasons in total
+  pass  the lenders that could not take it are listed with what would change that
+  pass  the screen states the source: Quotes are stored as ranges against an alias and cannot be edited after the fact
+        docs/screenshots/31-scenario-results-desktop.png
+  pass  running the same scenario twice produces the same quotes
+
+3. document upload, accepted and refused
+  pass  the document was added, 2 then 3
+  pass  the upload wrote an audit row with an acting seat: documents.insert, seat present
+        docs/screenshots/32-document-upload-accepted-desktop.png
+  pass  a text file is refused: text/plain is not accepted. Use a PDF, a PNG or a JPEG.
+        docs/screenshots/33-document-upload-refused-desktop.png
+
+4. premium panel, on a tenant that has the tier
+  pass  the premium panel renders for a premium tenant, 6 valuations
+        docs/screenshots/34-premium-panel-allowed-desktop.png
+
+5. premium panel, on a tenant that does not
+  pass  a non premium tenant is denied
+  pass  no premium data is present in the page sent to a non premium tenant
+        docs/screenshots/35-premium-panel-denied-desktop.png
+
+6. cross tenant on the scenario surface
+  pass  another tenant's scenario URL renders no scenario
+        docs/screenshots/36-cross-tenant-scenario-url-desktop.png
+
+7. 390 pixel layouts
+        docs/screenshots/37-scenario-builder-390.png
+  pass  the results screen does not scroll sideways at 390 pixels
+        docs/screenshots/38-scenario-results-390.png
+        docs/screenshots/39-premium-panel-allowed-390.png
+        docs/screenshots/40-premium-panel-denied-390.png
+
+all checks passed
+--- scenarios suite, pass 2: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1338ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (405ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: workflow suite, pass 1
+$ npm run verify:workflow
+========================================================================
+
+> lo-portal@0.1.0 verify:workflow
+> node scripts/verify-workflow.mjs
+
+1. the branded public intake, with no session at all
+  pass  the page carries the lender's own name: Harborline Mortgage Group
+        accent from the tenant record: rgb(79, 124, 255)
+        docs/screenshots/50-intake-branded-desktop.png
+        docs/screenshots/51-intake-submitted-desktop.png
+  pass  the borrower landed in the link's tenant, 15 then 16
+  pass  the other tenant is untouched at 14
+  pass  the row is marked as coming from intake: intake
+  pass  an unknown token renders no tenant name at all
+
+2. submissions, as a manager
+  pass  the queue shows this tenant's submissions, 6 of them
+        docs/screenshots/52-submissions-queue-desktop.png
+  pass  a manager can move a submission, the row now reads in_review
+  pass  the move left an audit row with an acting seat: submissions.update
+
+3. the same queue, as a loan officer
+  pass  the controls are inert for a loan officer, 4 disabled
+  pass  and the page says the database refuses the write, rather than hiding the button
+        docs/screenshots/53-submissions-loan-officer-desktop.png
+
+4. the fee ledger and reconciliation
+  pass  the ledger totals by period, 2 periods
+  pass  unreconciled entries are flagged rather than buried
+        docs/screenshots/54-ledger-reconciliation-desktop.png
+
+5. the audit trail
+  pass  the trail renders 18 entries
+  pass  filtering by table works, 5 submission entries
+        docs/screenshots/55-audit-desktop.png
+
+6. organisation branding
+  pass  the organisation's own public intake link is shown
+  pass  an administrator can rebrand, the row now reads #7c5cff
+  pass  and the tier is untouched by that write
+        docs/screenshots/56-organisation-branding-desktop.png
+
+7. the same page, as a manager
+  pass  the branding fields are read only for a manager, 3 disabled
+        docs/screenshots/57-organisation-readonly-desktop.png
+
+8. 390 pixel layouts
+  pass  /submissions does not scroll sideways at 390 pixels
+        docs/screenshots/58-submissions-390.png
+  pass  /ledger does not scroll sideways at 390 pixels
+        docs/screenshots/59-ledger-390.png
+  pass  /audit does not scroll sideways at 390 pixels
+        docs/screenshots/60-audit-390.png
+  pass  a second tenant's intake link carries that tenant's branding
+        docs/screenshots/61-intake-second-tenant-390.png
+
+all checks passed
+--- workflow suite, pass 1: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1026ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (412ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: seed documents
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents: ok ---
+
+========================================================================
+STEP: workflow suite, pass 2
+$ npm run verify:workflow
+========================================================================
+
+> lo-portal@0.1.0 verify:workflow
+> node scripts/verify-workflow.mjs
+
+1. the branded public intake, with no session at all
+  pass  the page carries the lender's own name: Harborline Mortgage Group
+        accent from the tenant record: rgb(79, 124, 255)
+        docs/screenshots/50-intake-branded-desktop.png
+        docs/screenshots/51-intake-submitted-desktop.png
+  pass  the borrower landed in the link's tenant, 15 then 16
+  pass  the other tenant is untouched at 14
+  pass  the row is marked as coming from intake: intake
+  pass  an unknown token renders no tenant name at all
+
+2. submissions, as a manager
+  pass  the queue shows this tenant's submissions, 6 of them
+        docs/screenshots/52-submissions-queue-desktop.png
+  pass  a manager can move a submission, the row now reads in_review
+  pass  the move left an audit row with an acting seat: submissions.update
+
+3. the same queue, as a loan officer
+  pass  the controls are inert for a loan officer, 4 disabled
+  pass  and the page says the database refuses the write, rather than hiding the button
+        docs/screenshots/53-submissions-loan-officer-desktop.png
+
+4. the fee ledger and reconciliation
+  pass  the ledger totals by period, 2 periods
+  pass  unreconciled entries are flagged rather than buried
+        docs/screenshots/54-ledger-reconciliation-desktop.png
+
+5. the audit trail
+  pass  the trail renders 18 entries
+  pass  filtering by table works, 5 submission entries
+        docs/screenshots/55-audit-desktop.png
+
+6. organisation branding
+  pass  the organisation's own public intake link is shown
+  pass  an administrator can rebrand, the row now reads #7c5cff
+  pass  and the tier is untouched by that write
+        docs/screenshots/56-organisation-branding-desktop.png
+
+7. the same page, as a manager
+  pass  the branding fields are read only for a manager, 3 disabled
+        docs/screenshots/57-organisation-readonly-desktop.png
+
+8. 390 pixel layouts
+  pass  /submissions does not scroll sideways at 390 pixels
+        docs/screenshots/58-submissions-390.png
+  pass  /ledger does not scroll sideways at 390 pixels
+        docs/screenshots/59-ledger-390.png
+  pass  /audit does not scroll sideways at 390 pixels
+        docs/screenshots/60-audit-390.png
+  pass  a second tenant's intake link carries that tenant's branding
+        docs/screenshots/61-intake-second-tenant-390.png
+
+all checks passed
+--- workflow suite, pass 2: ok ---
+
+========================================================================
+STEP: reset seed
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1436ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (283ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed: ok ---
+
+========================================================================
+STEP: scale, 5,000 rows on a production build
+$ npm run verify:scale
+========================================================================
+
+> lo-portal@0.1.0 verify:scale
+> node scripts/verify-scale.mjs
+
+Generated 5000 rows at <temp>\borrowers-5000.csv
+Measured against http://localhost:3100
+
+1. importing 5000 rows through the browser
+        parsed and previewed in 5.1s
+        committed in 13.8s, 18.8s end to end
+  pass  all 5000 rows were inserted, the summary says 5000
+  pass  the plan's target is under 60 seconds, this run took 18.8s
+
+2. the list at that size
+        5015 borrowers, showing 1 to 25 held, 25 rows on the page
+  pass  the first page rendered in 0.91s, target is under 1s
+
+3. the query plan
+        explain (analyze) as the authenticated role, under the policies:
+          Limit  (cost=0.19..18.07 rows=16 width=80) (actual time=0.070..0.095 rows=25 loops=1)
+            Buffers: shared hit=8
+            InitPlan 1
+              ->  Result  (cost=0.00..0.03 rows=1 width=32) (actual time=0.015..0.016 rows=1 loops=1)
+            ->  Index Scan using borrowers_org_name_idx on borrowers  (cost=0.16..18.04 rows=16 width=80) (actual time=0.069..0.091 rows=25 loops=1)
+                  Index Cond: (org_id = ((InitPlan 1).col1)::uuid)
+                  Buffers: shared hit=8
+          Planning Time: 0.443 ms
+          Execution Time: 0.207 ms
+  pass  the plan uses an index rather than a sequential scan
+
+all checks passed
+
+This run leaves 5,000 rows in the first organisation. npm run test:schema
+reapplies the schema and restores the seed.
+--- scale, 5,000 rows on a production build: ok ---
+
+========================================================================
+STEP: reset seed, final state
+$ npm run test:schema
+========================================================================
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+mode: real, against the project database over DATABASE_URL
+PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+note: the schema file drops and recreates the portal tables.
+      use --tests-only to run the tests against what is there.
+
+ok    schema           supabase/schema.sql  (1235ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+
+ok    isolation tests  supabase/tests/isolation.sql  (296ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  cross tenant scenario insert is rejected         WITH CHECK raised SQLSTATE 42501
+  pass  cross tenant scenario result insert is rejected  WITH CHECK raised SQLSTATE 42501
+  pass  scenario results cannot be edited after the fact no update grant, SQLSTATE 42501
+  pass  a scenario cannot borrow more than the property costs the loan and the deposit must equal the price, SQLSTATE 23514
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  intake branding is readable only for a live token one row for the real token, none for an unknown one, and no table grant either way
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the displaced refresh was refused with http_code 403
+  pass  a fresh sign in takes the seat over              the seat moved, and the original session can no longer refresh
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+32 passed, 0 skipped, 0 failed  (mode: real)
+--- reset seed, final state: ok ---
+
+========================================================================
+STEP: seed documents, final state
+$ npm run seed:documents
+========================================================================
+
+> lo-portal@0.1.0 seed:documents
+> node scripts/seed-documents.mjs
+
+  added   Bayou City Lending Co: income-verification.pdf for Archer
+  added   Bayou City Lending Co: bank-statement.pdf for Archer
+  added   Bayou City Lending Co: income-verification.pdf for Blanchard
+  added   Bayou City Lending Co: bank-statement.pdf for Blanchard
+  added   Harborline Mortgage Group: income-verification.pdf for Bell
+  added   Harborline Mortgage Group: bank-statement.pdf for Bell
+  added   Harborline Mortgage Group: income-verification.pdf for Briggs
+  added   Harborline Mortgage Group: bank-statement.pdf for Briggs
+  added   Red Oak Residential Finance: income-verification.pdf for Ainsley
+  added   Red Oak Residential Finance: bank-statement.pdf for Ainsley
+  added   Red Oak Residential Finance: income-verification.pdf for Beaumont
+  added   Red Oak Residential Finance: bank-statement.pdf for Beaumont
+
+12 uploaded, 0 already present
+--- seed documents, final state: ok ---
+
+production server stopped
+
+========================================================================
+SUMMARY
+========================================================================
+  ok    secret sweep, full git history
+  ok    repository guard
+  ok    guard self test
+  ok    eslint
+  ok    typescript
+  ok    production build
+  ok    isolation tests, real project
+  ok    provision, idempotency pass 1
+  ok    provision, idempotency pass 2
+  ok    upload refusals, browser bypassed
+  ok    seed documents
+  ok    auth suite, pass 1
+  ok    reset seed
+  ok    seed documents
+  ok    auth suite, pass 2
+  ok    reset seed
+  ok    seed documents
+  ok    borrowers suite, pass 1
+  ok    reset seed
+  ok    seed documents
+  ok    borrowers suite, pass 2
+  ok    reset seed
+  ok    seed documents
+  ok    scenarios suite, pass 1
+  ok    reset seed
+  ok    seed documents
+  ok    scenarios suite, pass 2
+  ok    reset seed
+  ok    seed documents
+  ok    workflow suite, pass 1
+  ok    reset seed
+  ok    seed documents
+  ok    workflow suite, pass 2
+  ok    reset seed
+  ok    scale, 5,000 rows on a production build
+  ok    reset seed, final state
+  ok    seed documents, final state
+
+37 of 37 steps ok
+RESULT: the whole sequence passed.
+finished 2026-09-22T19:15:08.441Z

@@ -1,15 +1,27 @@
 # Research log
 
 Every technical claim this build relies on, with the official source and the
-date it was read. A claim without a URL is struck out and anything depending on
-it counts as NOT DONE.
+date it was read. A claim without a URL is struck out and anything depending
+on it counts as NOT DONE.
+
+Three kinds of line appear here, and each carries its own kind of evidence:
+
+- A **source line** quotes or paraphrases official documentation and ends with
+  the URL and the date it was read.
+- An **observation line** begins "Observed directly" or "Proven, not assumed"
+  and records what this machine actually did. Its evidence is the file it
+  names under `docs/evidence`, not a URL, because the claim is about this
+  build rather than about a product.
+- A **decision line** records a choice and its reason. Decisions are not
+  research; the full list with reasoning is in `docs/DECISIONS.md`.
 
 Sources allowed: nextjs.org, react.dev, supabase.com/docs, postgresql.org,
 tailwindcss.com, ui.shadcn.com, vercel.com/docs, papaparse.com,
-learn.microsoft.com, typescript-eslint.io, and the npm registry for versions.
-Next.js 16.2 and later ship their own documentation inside the installed
-package at node_modules/next/dist/docs, which is the same official text
-version matched to the pinned release; lines citing it name the file.
+learn.microsoft.com, playwright.dev, typescript-eslint.io, and the npm
+registry for versions. Next.js 16.2 and later ship their own documentation
+inside the installed package at node_modules/next/dist/docs, which is the
+same official text version matched to the pinned release; lines citing it
+name the file.
 
 ## Versions
 
@@ -58,7 +70,7 @@ version matched to the pinned release; lines citing it name the file.
 - The returned claims object must still contain all required claims: iss, aud, exp, iat, sub, role, aal, session_id, email, phone, is_anonymous. The hook therefore adds to `event->'claims'` and never replaces it. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
 - Token issuance is refused by returning `{"error": {"http_code": 403, "message": "..."}}`. This is how seat takeover ends the losing session at its next refresh. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
 - Grants and revokes for the hook, verbatim from the RBAC guide: `grant usage on schema public to supabase_auth_admin;` then `grant execute on function public.custom_access_token_hook to supabase_auth_admin;` and `revoke execute on function public.custom_access_token_hook from authenticated, anon, public;` plus `grant all on table <table the hook reads> to supabase_auth_admin;`, `revoke all on table <that table> from authenticated, anon, public;` and a policy `as permissive for select to supabase_auth_admin using (true)`. https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac - 22 Sep 2026
-- Deliberate difference from that example: the guide's table is read only by the hook, so it is revoked from authenticated entirely. Our `seats` table is also read by the portal (the Sessions screen and assignment), so it keeps the supabase_auth_admin grant and policy AND a separate org scoped policy for authenticated. The revoke is therefore narrowed to anon and public. Recorded here because it is a departure from the doc example, not from the plan.
+- Decision, recorded in docs/DECISIONS.md. Deliberate difference from that example: the guide's table is read only by the hook, so it is revoked from authenticated entirely. Our `seats` table is also read by the portal (the Sessions screen and assignment), so it keeps the supabase_auth_admin grant and policy AND a separate org scoped policy for authenticated. The revoke is therefore narrowed to anon and public. Recorded here because it is a departure from the doc example, not from the plan.
 
 ## Row level security
 
@@ -80,12 +92,12 @@ version matched to the pinned release; lines citing it name the file.
 ## Storage
 
 - Object access is controlled by policies on the storage.objects table itself, and the first path segment is read with `(storage.foldername(name))[1]`, as in `create policy "Allow authenticated uploads" on storage.objects for insert to authenticated with check ( bucket_id = 'my_bucket_id' and (storage.foldername(name))[1] = 'private' );`. https://supabase.com/docs/guides/storage/security/access-control - 22 Sep 2026
-- Not verified and therefore not relied on: the published signature and return type of storage.foldername and storage.filename. That page shows the usage but not the signatures, so the schema uses only the documented `(storage.foldername(name))[1]` form.
+- Struck, and therefore not relied on: the published signature and return type of storage.foldername and storage.filename. That page shows the usage but not the signatures, so the schema uses only the documented `(storage.foldername(name))[1]` form.
 
 ## The role claim: a contradiction with the plan, and the fix
 
 - The standard `role` claim in a Supabase access token is "The Postgres role to use when applying Row Level Security policies". https://supabase.com/docs/guides/auth/jwts - 22 Sep 2026
-- Section 3.3 of the plan says the hook "stamps org_id, role and seat_id". Taken literally that overwrites the claim above with org_admin, manager or loan_officer, and every request would then try to run as a Postgres role of that name. The portal role is therefore carried in a separate claim named org_role, and `role` is left as authenticated. Our own live reference repository does the same thing under the name app_role, so this is the house pattern and not an invention.
+- Decision, recorded in docs/DECISIONS.md: section 3.3 of the plan says the hook "stamps org_id, role and seat_id". Taken literally that overwrites the claim above with org_admin, manager or loan_officer, and every request would then try to run as a Postgres role of that name. The portal role is therefore carried in a separate claim named org_role, and `role` is left as authenticated. Our own live reference repository does the same thing under the name app_role, so this is the house pattern and not an invention.
 - Proven, not assumed: supabase/tests/isolation.sql asserts that the hook returns `role` still equal to authenticated and `session_id` untouched, alongside the three claims it adds.
 
 ## Testing the database half locally
@@ -97,28 +109,28 @@ version matched to the pinned release; lines citing it name the file.
 ## Two defects the local run caught
 
 - A function declared `stable` cannot execute a data modifying statement, so the access token hook must be volatile: it writes to seats when it claims one. https://www.postgresql.org/docs/current/xfunc-volatility.html - 22 Sep 2026
-- One trigger function serving several tables must not name a column of any one of them. The audit trigger converts the row to jsonb and asks whether the key is present, because `organizations` is the tenant itself and is keyed by id with no org_id column. Caught by the test run as "null value in column org_id of relation audit_log violates not-null constraint".
+- Observed directly: one trigger function serving several tables must not name a column of any one of them. The audit trigger converts the row to jsonb and asks whether the key is present, because `organizations` is the tenant itself and is keyed by id with no org_id column. Caught by the test run as "null value in column org_id of relation audit_log violates not-null constraint".
 
 ## Server side auth in Next.js
 
 - The browser client, the server client and the proxy client are taken verbatim from the official guide, including the comment "Do not run code between createServerClient and supabase.auth.getClaims()". The environment variable names in that guide are NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, which is what .env.example uses. https://supabase.com/docs/guides/auth/server-side/nextjs - 22 Sep 2026
-- "Never trust supabase.auth.getSession() inside server code such as Proxy. It reads the session out of the cookie without revalidating it." getClaims verifies the token signature on every call, locally against a cached JWKS when the project uses asymmetric signing keys. Same URL - 22 Sep 2026
+- "Never trust supabase.auth.getSession() inside server code such as Proxy. It reads the session out of the cookie without revalidating it." getClaims verifies the token signature on every call, locally against a cached JWKS when the project uses asymmetric signing keys. https://supabase.com/docs/guides/auth/server-side/nextjs - 22 Sep 2026
 - getClaims also refreshes: "If the user's access token is about to expire when calling this function, the user's session will first be refreshed before validating the JWT." That refresh is the moment the access token hook re-runs, which is what makes seat enforcement take effect. https://supabase.com/docs/reference/javascript/auth-getclaims - 22 Sep 2026
-- "The returned claims can be customized per project using the Custom Access Token Hook." Same URL - 22 Sep 2026
+- "The returned claims can be customized per project using the Custom Access Token Hook." https://supabase.com/docs/reference/javascript/auth-getclaims - 22 Sep 2026
 - Returning a different response from the proxy requires carrying the refreshed cookies and the cache headers across, otherwise "you may be causing the browser and server to go out of sync and terminate the user's session prematurely". Both redirects in lib/supabase/proxy.ts go through one helper that does this. https://supabase.com/docs/guides/auth/server-side/nextjs - 22 Sep 2026
-- Correction to that guide, observed while building: it writes the carry across as `myNewResponse.cookies.setAll(...)`, but ResponseCookies in Next.js 16 exposes get, getAll, set and delete only. `tsc` rejects setAll with TS2551. The helper sets each cookie in turn, and each entry already carries its options. Observed on next 16.3.5 - 22 Sep 2026
+- Observed directly, a correction to that guide: it writes the carry across as `myNewResponse.cookies.setAll(...)`, but ResponseCookies in Next.js 16 exposes get, getAll, set and delete only. `tsc` rejects setAll with TS2551. The helper sets each cookie in turn, and each entry already carries its options. Observed on next 16.3.5 - 22 Sep 2026
 - The framework's own warning, which is why every action calls requireClaims rather than trusting the proxy: "Always verify authentication and authorization inside each Server Function rather than relying on Proxy alone", because a matcher change or a refactor can silently remove proxy coverage. https://nextjs.org/docs/app/api-reference/file-conventions/proxy - 22 Sep 2026
 
 ## signOut scopes
 
 - "the default scope is 'global'. This signs the user out of every device they are currently signed in on, not just the current tab/session. If you only want to sign the user out of the current session ... pass { scope: 'local' } explicitly." The sign out button therefore states local. https://supabase.com/docs/reference/javascript/auth-signout - 22 Sep 2026
-- The Sessions screen's "sign out other devices" uses the third scope, which signs out all other sessions and keeps the current one. Documented caveat carried into the UI copy: "Since Supabase Auth uses JWTs ... the access token JWT will be valid until it's expired. When the user signs out, Supabase revokes the refresh token and deletes the JWT from the client-side. This does not revoke the JWT and it will still be valid until it expires." Same URL - 22 Sep 2026
-- Also documented and worth knowing when wiring listeners: "If using others scope, no SIGNED_OUT event is fired!" Same URL - 22 Sep 2026
+- The Sessions screen's "sign out other devices" uses the third scope, which signs out all other sessions and keeps the current one. Documented caveat carried into the UI copy: "Since Supabase Auth uses JWTs ... the access token JWT will be valid until it's expired. When the user signs out, Supabase revokes the refresh token and deletes the JWT from the client-side. This does not revoke the JWT and it will still be valid until it expires." https://supabase.com/docs/reference/javascript/auth-signout - 22 Sep 2026
+- Also documented and worth knowing when wiring listeners: "If using others scope, no SIGNED_OUT event is fired!" https://supabase.com/docs/reference/javascript/auth-signout - 22 Sep 2026
 
 ## Seat takeover, corrected
 
 - The hook event carries authentication_method, whose documented values include password and token_refresh. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
-- Correction to what was built in the previous step: the hook refused any session whose id differed from the seat's, which locks a person out of their own seat the moment they change machine. Section 3.3 of the plan specifies takeover, not lockout. The rule now turns on authentication_method: a fresh sign in takes the seat, a refresh from a session that no longer holds it is refused. A new test asserts both halves.
+- Observed directly, a correction to what was built in the previous step: the hook refused any session whose id differed from the seat's, which locks a person out of their own seat the moment they change machine. Section 3.3 of the plan specifies takeover, not lockout. The rule now turns on authentication_method: a fresh sign in takes the seat, a refresh from a session that no longer holds it is refused. A new test asserts both halves.
 
 ## Running the tests against the project
 
@@ -127,33 +139,33 @@ version matched to the pinned release; lines citing it name the file.
 
 ## Two things next dev does to the repository
 
-- `next dev` writes agent instruction files into the repository root on every start, and re-adds them if removed: "This block is written and re-added by `next dev`". The generator is switched off with `agentRules: false` in the Next config, which the tool's own message names. Observed on next 16.3.5, and the setting is read back from the running config - 22 Sep 2026
-- Without `turbopack.root`, Turbopack searches upward for a lock file and can adopt one from outside the repository: "Next.js ignored package-lock.json in <home> because it is outside the current Git repository ... To use this directory, set `turbopack.root` in your Next.js config." Set to the repository root. Observed on next 16.3.5 - 22 Sep 2026
-- Both were caught by the repository guard rather than by review, which is the point of it. The guard now also checks file and directory names, not only contents, and refuses the literal banned words in its own tracked files: the .gitignore entry for the generated file is written as a character class for that reason.
-- Scope correction to guard check 6, stated because it narrows a claim made in the previous report: the build output is scanned for the client, sister company, person and platform names only. It is not scanned for AI tool names, because a bundled dependency carries such strings in its own docstrings: one vendored source map contains an example vector index name built from a model vendor's name. That is neither ours to remove nor evidence of anything. Everything this repository authors is still checked for both sets.
+- Observed directly: `next dev` writes agent instruction files into the repository root on every start, and re-adds them if removed: "This block is written and re-added by `next dev`". The generator is switched off with `agentRules: false` in the Next config, which the tool's own message names. Observed on next 16.3.5, and the setting is read back from the running config - 22 Sep 2026
+- Observed directly: without `turbopack.root`, Turbopack searches upward for a lock file and can adopt one from outside the repository: "Next.js ignored package-lock.json in <home> because it is outside the current Git repository ... To use this directory, set `turbopack.root` in your Next.js config." Set to the repository root. Observed on next 16.3.5 - 22 Sep 2026
+- Observed directly: both were caught by the repository guard rather than by review, which is the point of it. The guard now also checks file and directory names, not only contents, and refuses the literal banned words in its own tracked files: the .gitignore entry for the generated file is written as a character class for that reason.
+- Decision, recorded in docs/DECISIONS.md. Scope correction to guard check 6, stated because it narrows a claim made in the previous report: the build output is scanned for the client, sister company, person and platform names only. It is not scanned for AI tool names, because a bundled dependency carries such strings in its own docstrings: one vendored source map contains an example vector index name built from a model vendor's name. That is neither ours to remove nor evidence of anything. Everything this repository authors is still checked for both sets.
 
 ## Management API, for provisioning
 
 - Base URL is https://api.supabase.com and "All API requests must be authenticated and made over HTTPS", with a personal access token sent as `Authorization: Bearer sbp_...`. The docs also warn that "PATs carry the same privileges as your user account", which is why that variable is the most sensitive one in .env.local and is used by one script only. https://supabase.com/docs/reference/api/introduction - 22 Sep 2026
-- Rate limit: 120 requests per minute, per user, per project or organisation, returning 429 for the rest of the minute once exceeded. The provisioner makes five calls. Same URL - 22 Sep 2026
+- Rate limit: 120 requests per minute, per user, per project or organisation, returning 429 for the rest of the minute once exceeded. The provisioner makes five calls. https://supabase.com/docs/reference/api/introduction - 22 Sep 2026
 - The auth service config endpoint is `PATCH /v1/projects/{ref}/config/auth`, and the same path answers GET for reading the config back. https://supabase.com/docs/reference/api/v1-update-auth-service-config - 22 Sep 2026
-- Field names on that endpoint, read from its own body schema: `hook_custom_access_token_enabled` (boolean), `hook_custom_access_token_uri` (string), `hook_custom_access_token_secrets` (string), and `jwt_exp` (integer). Same URL - 22 Sep 2026
+- Field names on that endpoint, read from its own body schema: `hook_custom_access_token_enabled` (boolean), `hook_custom_access_token_uri` (string), `hook_custom_access_token_secrets` (string), and `jwt_exp` (integer). https://supabase.com/docs/reference/api/v1-update-auth-service-config - 22 Sep 2026
 - The hook URI form for a Postgres function is `pg-functions://postgres/<schema>/<function_name>`, so ours is `pg-functions://postgres/public/custom_access_token_hook`. The same page repeats the grant this schema already carries: "grant execute on function public.custom_access_token_hook to supabase_auth_admin". https://supabase.com/docs/guides/auth/auth-hooks - 22 Sep 2026
 
 ## Storage bucket options
 
 - `createBucket(id, options)` takes `public`, `allowedMimeTypes` and `fileSizeLimit`, shown as `createBucket('avatars', { public: false, allowedMimeTypes: ['image/png'], fileSizeLimit: 1024 })`. https://supabase.com/docs/reference/javascript/storage-createbucket - 22 Sep 2026
-- Creating a bucket needs insert on the buckets table, so the provisioner uses the secret key for this call. That is the second of the two permitted uses of that key, and neither is in a request path. Same URL - 22 Sep 2026
+- Creating a bucket needs insert on the buckets table, so the provisioner uses the secret key for this call. That is the second of the two permitted uses of that key, and neither is in a request path. https://supabase.com/docs/reference/javascript/storage-createbucket - 22 Sep 2026
 - The MIME types for the three formats the plan allows are application/pdf, image/png and image/jpeg. Note that jpg is not a MIME type; image/jpeg covers both .jpg and .jpeg. https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types - 22 Sep 2026
 
 ## A privilege defect found only on the real project
 
-- On the project as first provisioned, `anon` and `authenticated` each held SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on every table in the public schema. Read directly from information_schema.role_table_grants on the project, not inferred.
-- Consequence: the column level grants in the schema restricted nothing, because they only ADD privileges. The two tests that protect the tenant boundary from an administrator, "cannot grant itself the premium tier" and "cannot make itself demo admin", both failed on the real project while passing locally. The second of those is the flag that reaches the cross tenant demo switch.
-- Row level security still denied anon every row, because no policy names anon, so this was not an open data path. Privileges and policies are two separate gates and this one was wrong.
-- Fix: the schema now revokes all privileges on each of the ten tables from anon, authenticated and public before granting exactly what each role needs.
-- Harness fidelity: supabase/tests/harness.sql now runs `alter default privileges in schema public grant all on tables to anon, authenticated`, which reproduces the platform's behaviour. Proven rather than assumed: with that line added and the revokes not yet written, the local run reproduced the same failure the real project gave. https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html - 22 Sep 2026
-- Second defect found by the same real run: dropping public.write_audit() before the tables fails on any re-run, because their audit triggers depend on it. The drop order now puts tables first, so the cascade removes the triggers before the function is dropped.
+- Observed directly: on the project as first provisioned, `anon` and `authenticated` each held SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on every table in the public schema. Read directly from information_schema.role_table_grants on the project, not inferred.
+- Observed directly, consequence: the column level grants in the schema restricted nothing, because they only ADD privileges. The two tests that protect the tenant boundary from an administrator, "cannot grant itself the premium tier" and "cannot make itself demo admin", both failed on the real project while passing locally. The second of those is the flag that reaches the cross tenant demo switch.
+- Observed directly: row level security still denied anon every row, because no policy names anon, so this was not an open data path. Privileges and policies are two separate gates and this one was wrong.
+- Decision, recorded in docs/DECISIONS.md: the schema now revokes all privileges on each of the ten tables from anon, authenticated and public before granting exactly what each role needs.
+- Observed directly, harness fidelity: supabase/tests/harness.sql now runs `alter default privileges in schema public grant all on tables to anon, authenticated`, which reproduces the platform's behaviour. Proven rather than assumed: with that line added and the revokes not yet written, the local run reproduced the same failure the real project gave. https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html - 22 Sep 2026
+- Observed directly: a second defect found by the same real run: dropping public.write_audit() before the tables fails on any re-run, because their audit triggers depend on it. The drop order now puts tables first, so the cascade removes the triggers before the function is dropped.
 
 ## Browser verification
 
@@ -179,20 +191,20 @@ version matched to the pinned release; lines citing it name the file.
 
 ## Three things the browser run taught, that no document says
 
-- Papa Parse worker mode posts the configuration to the worker, and a function cannot be structured cloned, so `transformHeader` with `worker: true` fails at runtime with "Failed to execute 'postMessage' on 'Worker': function canonicalHeader ... could not be cloned". The headers are canonicalised after the rows come back instead, and the worker is kept. Observed on papaparse 5.7.0 - 22 Sep 2026
-- A module marked `"use server"` may export async functions only. Exporting a constant beside the actions fails the build with an Ecmascript error naming the file, so BATCH_SIZE and the result type live in lib/borrowers.ts. https://nextjs.org/docs/app/getting-started/updating-data - 22 Sep 2026
-- `loading.tsx` only renders when a segment is actually fetched, which means a verification of it has to enter the segment from outside it and has to defeat the router's prefetch. Changing a search parameter stays inside the same segment and never re-suspends; clicking a link the router has already prefetched fetches nothing. The check arms the delay before the page loads, so the prefetch is held open too, then navigates in from another segment. Written down because the first two versions of this check reported a pass and a fail for the same working code. https://nextjs.org/docs/app/api-reference/file-conventions/loading - 22 Sep 2026
+- Observed directly: Papa Parse worker mode posts the configuration to the worker, and a function cannot be structured cloned, so `transformHeader` with `worker: true` fails at runtime with "Failed to execute 'postMessage' on 'Worker': function canonicalHeader ... could not be cloned". The headers are canonicalised after the rows come back instead, and the worker is kept. Observed on papaparse 5.7.0 - 22 Sep 2026
+- Observed directly: a module marked `"use server"` may export async functions only, and exporting a constant beside the actions fails the build with an Ecmascript error naming the file, so BATCH_SIZE and the result type live in lib/borrowers.ts. https://nextjs.org/docs/app/getting-started/updating-data - 22 Sep 2026
+- Observed directly: `loading.tsx` only renders when a segment is actually fetched, which means a verification of it has to enter the segment from outside it and has to defeat the router's prefetch. Changing a search parameter stays inside the same segment and never re-suspends; clicking a link the router has already prefetched fetches nothing. The check arms the delay before the page loads, so the prefetch is held open too, then navigates in from another segment. Written down because the first two versions of this check reported a pass and a fail for the same working code. https://nextjs.org/docs/app/api-reference/file-conventions/loading - 22 Sep 2026
 
 ## Day 2 part 2: scenarios, uploads, premium
 
 - `upload(path, fileBody, fileOptions?)` requires insert on the objects table, so the storage policies decide whether the object may exist. The browser uploads with the signed in user's own session for exactly that reason. https://supabase.com/docs/reference/javascript/storage-from-upload - 22 Sep 2026
 - A bucket carries its own `file_size_limit` and `allowed_mime_types`, applied by storage rather than by the caller. Ours are 10 MB and pdf, png, jpeg, set by scripts/provision.mjs and asserted by it. https://supabase.com/docs/guides/storage/uploads/file-limits - 22 Sep 2026
 - Server action bodies are capped: "By default, the maximum size of the request body sent to a Server Action is 1MB", raisable with `serverActions.bodySizeLimit`. We do not raise it. A 10 MB document would also exceed the hosting platform's own 4.5 MB request cap, so the file never travels through an action at all: the browser uploads to storage and the action records the row. node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/serverActions.md. https://nextjs.org/docs/app/api-reference/config/next-config-js/serverActions - 22 Sep 2026
-- Bucket limits and storage policies are what the negative tests exercise, and the real messages are recorded in docs/evidence/upload-negative-tests.txt: "The object exceeded the maximum allowed size", "mime type text/plain is not supported", "new row violates row-level security policy".
+- Observed directly: bucket limits and storage policies are what the negative tests exercise, and the real messages are recorded in docs/evidence/upload-negative-tests.txt: "The object exceeded the maximum allowed size", "mime type text/plain is not supported", "new row violates row-level security policy".
 
 ## A second, quieter case of the same server module rule
 
-- A module marked `"use server"` may export only async functions. Exporting a constant sometimes fails the build loudly, as it did for BATCH_SIZE, and sometimes does not: ALLOWED_TYPES compiled, became a server function stub in the browser, and failed at run time on the first upload with "ALLOWED_TYPES.includes is not a function". Shared constants now live in lib/documents.ts. Observed on next 16.3.5 - 22 Sep 2026
+- Observed directly: a module marked `"use server"` may export only async functions, and exporting a constant sometimes fails the build loudly, as it did for BATCH_SIZE, and sometimes does not: ALLOWED_TYPES compiled, became a server function stub in the browser, and failed at run time on the first upload with "ALLOWED_TYPES.includes is not a function". Shared constants now live in lib/documents.ts. Observed on next 16.3.5 - 22 Sep 2026
 
 ## How loading.tsx is actually observed
 
@@ -202,7 +214,7 @@ version matched to the pinned release; lines citing it name the file.
 
 - `vercel env add [name] [environment]` takes the value on stdin, and the documentation warns against the obvious shortcut: "echo [value] | vercel env add [name] [environment] ... Warning: this will save the value in bash history, so this is not recommend". scripts/vercel-env.mjs writes to the child process's stdin instead, so no value reaches a shell, a log or a terminal. https://vercel.com/docs/cli/env - 22 Sep 2026
 - Environment variables are scoped per environment, so production and preview are set separately. Only the two variables the runtime reads are set; the tooling variables are deliberately absent from the deployment. https://vercel.com/docs/cli/env - 22 Sep 2026
-- `vercel curl` performs the documented automation bypass for a deployment behind Deployment Protection, which is how the live headers were captured while the deployment is still gated. `npx vercel --help` - 22 Sep 2026
+- Observed directly: `vercel curl` performs the documented automation bypass for a deployment behind Deployment Protection, which is how the live headers were captured while the deployment is still gated. `npx vercel --help` - 22 Sep 2026
 - Security headers are set in the Next config with a `headers()` function returning source and header pairs. HSTS is the documented `max-age=63072000; includeSubDomains; preload`, and the docs note that X-Frame-Options "has been superseded by CSP's frame-ancestors option", so both are sent. node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/headers.md. https://nextjs.org/docs/app/api-reference/config/next-config-js/headers - 22 Sep 2026
 
 ## Supabase redirect configuration

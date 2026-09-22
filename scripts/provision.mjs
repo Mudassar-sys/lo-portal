@@ -55,7 +55,7 @@ const HOOK_URI = "pg-functions://postgres/public/custom_access_token_hook";
 // production entry is exact, which is what the documentation recommends for
 // production. Localhost stays on the list so the same project still works for
 // local development.
-const SITE_URL = process.env.SITE_URL ?? "https://lo-portal-mudassar-sys-projects.vercel.app";
+const SITE_URL = process.env.SITE_URL ?? "https://fieldstone-portal.vercel.app";
 const REDIRECT_URLS = [
   `${SITE_URL}/**`,
   "https://lo-portal-*-mudassar-sys-projects.vercel.app/**",

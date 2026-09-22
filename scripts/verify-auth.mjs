@@ -96,7 +96,7 @@ try {
   const heading = await pageA.locator("h1").first().innerText();
   check(heading.includes("Harborline"), `the overview names the seat's own tenant: ${heading}`);
   const accentA = await pageA.evaluate(() =>
-    getComputedStyle(document.querySelector("header div span")).backgroundColor
+    getComputedStyle(document.querySelector("[data-brand-swatch]")).backgroundColor
   );
   record(`        tenant accent on first paint: ${accentA}`);
   record(`        ${await shot(pageA, "01-sign-in-overview-harborline")}`);
@@ -201,7 +201,7 @@ try {
   await signIn(pageC, SEAT_OTHER_TENANT);
   const headingC = await pageC.locator("h1").first().innerText();
   const accentC = await pageC.evaluate(() =>
-    getComputedStyle(document.querySelector("header div span")).backgroundColor
+    getComputedStyle(document.querySelector("[data-brand-swatch]")).backgroundColor
   );
   check(headingC.includes("Bayou City"), `a different tenant, branded differently: ${headingC}`);
   check(accentC !== accentA, `and a different accent on first paint: ${accentC}`);
@@ -226,12 +226,13 @@ record("");
 record(`${failures === 0 ? "all checks passed" : `${failures} checks FAILED`}`);
 
 writeFileSync(
-  `${SHOTS}/README.md`,
+  `${SHOTS}/auth-run.md`,
   [
-    "# Screenshots",
+    "# Auth and seat verification run",
     "",
-    "Every screenshot here was produced by `npm run verify:auth`, which drives",
-    "Chrome through playwright-core against the running portal.",
+    "Produced by `npm run verify:auth`, which drives Chrome through",
+    "playwright-core against the running portal. The index of every screenshot",
+    "is in README.md beside this file.",
     "",
     "Backend for every one of them: the real project, its own PostgreSQL 17.6,",
     "provisioned by `scripts/provision.mjs` and seeded by `supabase/schema.sql`.",

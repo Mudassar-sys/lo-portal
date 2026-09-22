@@ -479,6 +479,7 @@ declare
   v_token_a    text;
   v_borrower   uuid;
   v_landed_org uuid;
+  n            bigint;
 begin
   select id into v_org_a from public.organizations where slug = 'harborline-mortgage';
   select id into v_org_b from public.organizations where slug = 'bayou-city-lending';
@@ -507,6 +508,22 @@ begin
   end if;
   insert into test_results (name, outcome, detail) values
     ('public intake writes only into the token tenant', 'pass', 'the function takes no organisation argument');
+
+  -- The branding function gives an anonymous visitor the three fields the
+  -- intake page needs and nothing else, and only for a live link.
+  execute 'set local role anon';
+  select count(*) into n from public.intake_branding(v_token_a);
+  if n <> 1 then
+    raise exception 'the intake branding lookup returned % rows for a live token', n;
+  end if;
+  select count(*) into n from public.intake_branding('not-a-real-token');
+  if n <> 0 then
+    raise exception 'the intake branding lookup answered for an unknown token';
+  end if;
+  insert into test_results (name, outcome, detail) values
+    ('intake branding is readable only for a live token', 'pass',
+     'one row for the real token, none for an unknown one, and no table grant either way');
+  execute 'reset role';
 
   -- An unknown or inactive token writes nothing.
   execute 'set local role anon';

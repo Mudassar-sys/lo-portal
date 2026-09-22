@@ -7,7 +7,11 @@ const NAV = [
   { href: "/", label: "Overview" },
   { href: "/borrowers", label: "Borrowers" },
   { href: "/scenarios", label: "Scenarios" },
-  { href: "/property-intelligence", label: "Property intelligence" },
+  { href: "/submissions", label: "Submissions" },
+  { href: "/ledger", label: "Ledger" },
+  { href: "/property-intelligence", label: "Property" },
+  { href: "/audit", label: "Audit" },
+  { href: "/settings", label: "Organisation" },
   { href: "/sessions", label: "Sessions" },
 ] as const;
 
@@ -29,7 +33,11 @@ export default async function PortalLayout({
       <header className="sticky top-0 z-10 border-b border-line bg-canvas/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
           <div className="flex min-w-0 items-center gap-2.5">
-            <span aria-hidden className="size-7 shrink-0 rounded-md bg-(--accent)" />
+            <span
+              aria-hidden
+              data-brand-swatch
+              className="size-7 shrink-0 rounded-md bg-(--accent)"
+            />
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold tracking-tight">
                 {org.display_name}
@@ -45,7 +53,12 @@ export default async function PortalLayout({
             </div>
           </div>
 
-          <nav className="order-3 -mx-1 flex w-full gap-1 overflow-x-auto sm:order-none sm:mx-0 sm:w-auto">
+          {/* min-w-0 matters here. A flex item defaults to min-width:auto, which
+              refuses to shrink below its content, so overflow-x-auto never
+              engages and the whole document scrolls sideways instead of the
+              strip. That was a real regression once the nav grew to nine
+              items. */}
+          <nav className="order-3 -mx-1 flex w-full min-w-0 gap-1 overflow-x-auto px-1 sm:order-none sm:mx-0 sm:w-auto">
             {NAV.map((item) => (
               <Link
                 key={item.href}

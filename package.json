@@ -23,7 +23,10 @@
     "sweep": "node scripts/secret-sweep.mjs",
     "vercel:env": "node scripts/vercel-env.mjs",
     "verify:scale": "node scripts/verify-scale.mjs",
-    "record": "node scripts/record-walkthrough.mjs"
+    "record": "node scripts/record-walkthrough.mjs",
+    "verify:live": "node scripts/verify-live.mjs",
+    "verify:workflow": "node scripts/verify-workflow.mjs",
+    "final": "node scripts/final-run.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

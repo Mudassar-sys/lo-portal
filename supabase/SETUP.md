@@ -88,7 +88,7 @@ With `DATABASE_URL` set this runs against the project itself, with no
 emulation, and prints `mode: real`. The tests run in one transaction and roll
 back, so they leave nothing behind.
 
-Expect: **27 passed, 0 skipped, 0 failed**.
+Expect: **32 passed, 0 skipped, 0 failed**.
 
 `npm run test:schema -- --tests-only` runs the tests without reapplying the
 schema. `npm run test:schema -- --local` forces the emulator even when
@@ -100,15 +100,25 @@ If the run fails immediately with `permission denied to set role
 again. The tests deliberately impersonate the `authenticated` role rather than
 running as the owner, because a test that runs as the owner proves nothing.
 
-## 6. Verify the auth and seat model in a browser
+## 6. Verify it in a browser
 
 ```bash
-npm run dev
-npm run verify:auth
+npm run final
 ```
 
-Drives Chrome through two isolated contexts and writes seven screenshots to
-`docs/screenshots`, with a transcript in `docs/screenshots/README.md`.
+Runs the whole sequence in order into `docs/evidence/final-run.txt`: the
+secret sweep, the guards, lint, types, the build, the isolation tests,
+provisioning twice for idempotency, the upload refusals, then every browser
+suite twice and the 5,000 row scale run. It starts its own production server
+and stops it again, and it records which attempt produced the transcript.
+
+Expect: **37 of 37 steps ok**.
+
+Against the deployed alias instead of a local build:
+
+```bash
+npm run verify:live
+```
 
 ## What is checked before any of this
 

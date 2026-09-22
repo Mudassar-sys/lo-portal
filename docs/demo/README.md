@@ -17,5 +17,5 @@ artefact that is deployed. Re-recording against the deployed URL is one
 command once that protection is lifted:
 
 ```bash
-VERIFY_BASE_URL=https://lo-portal-mudassar-sys-projects.vercel.app npm run record
+VERIFY_BASE_URL=https://fieldstone-portal.vercel.app npm run record
 ```

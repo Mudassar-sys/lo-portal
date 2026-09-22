@@ -12,7 +12,7 @@ modules, marked as stubs at the top of their files, and they reach no network.
 
 ## Live
 
-- Portal: https://lo-portal-mudassar-sys-projects.vercel.app
+- Portal: https://fieldstone-portal.vercel.app
 
 Sign in as two different tenants and compare what each can see. The password is
 the same for both and is shared privately; it is not in this repository and no
@@ -35,7 +35,10 @@ record does not exist as far as the second tenant's queries are concerned.
 - Documents in private storage, served only through links that expire.
 - Financing scenarios against a matching service, returning ranges against an
   alias rather than a lender's identity.
-- A fee ledger and submissions, seeded and readable.
+- A submission queue with assignment and a status machine only a manager can move.
+- A fee ledger totalled by month, with unreconciled entries flagged.
+- A branded public intake link per lender, usable with no account at all.
+- An organisation page where an administrator rebrands the tenant, and cannot change its tier.
 - A premium tier gate, decided on the server.
 - An audit trail the application cannot write to.
 
@@ -193,6 +196,11 @@ npm run test:schema -- --local
 
 ## Evidence
 
+- [docs/REQUIREMENTS-TRACE.md](docs/REQUIREMENTS-TRACE.md): one row per sentence
+  of the job posting, in the client's own order, with where it lives, how it
+  was checked and what the check produced.
+- [docs/DECISIONS.md](docs/DECISIONS.md): the choices made while building, each
+  with its reason in one line.
 - [VERIFICATION.md](VERIFICATION.md): the fourteen checks from the build plan,
   each with the command that proves it and the file holding the output, plus the
   two defects the tests caught.

@@ -55,6 +55,7 @@ drop table if exists public.organizations cascade;
 drop function if exists public.custom_access_token_hook(jsonb);
 drop function if exists public.claim_seat_session(uuid);
 drop function if exists public.submit_intake(text, text, text, text, text);
+drop function if exists public.intake_branding(text);
 drop function if exists public.write_audit();
 
 -- ---------------------------------------------------------------------------
@@ -672,6 +673,30 @@ $$;
 
 revoke execute on function public.submit_intake(text, text, text, text, text) from public;
 grant execute on function public.submit_intake(text, text, text, text, text) to anon, authenticated;
+
+-- The branding behind a public intake link.
+--
+-- The intake page has to look like the lender's own page, and its visitor has
+-- no session and no table privileges whatsoever. This returns the three
+-- branding fields for an active link and nothing else: no id, no counts, no
+-- way to enumerate. An unknown or retired token returns no row, so a guessed
+-- link renders nothing rather than confirming that an organisation exists.
+create or replace function public.intake_branding(p_token text)
+returns table (display_name text, accent_color text, logo_url text)
+language sql
+security definer
+set search_path = ''
+stable
+as $$
+  select o.display_name, o.accent_color, o.logo_url
+    from public.intake_links l
+    join public.organizations o on o.id = l.org_id
+   where l.token = p_token
+     and l.active;
+$$;
+
+revoke execute on function public.intake_branding(text) from public;
+grant execute on function public.intake_branding(text) to anon, authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 7. Storage.

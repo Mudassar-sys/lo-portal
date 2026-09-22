@@ -7,7 +7,6 @@
 // Usage: npm run verify:scale      (the dev server must be running)
 
 import { chromium } from "playwright-core";
-import { createClient } from "@supabase/supabase-js";
 import { writeFileSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -34,12 +33,6 @@ const check = (ok, statement) => {
   record(`  ${ok ? "pass" : "FAIL"}  ${statement}`);
   if (!ok) failures += 1;
 };
-
-const admin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY,
-  { auth: { autoRefreshToken: false, persistSession: false } }
-);
 
 // ---------------------------------------------------------------------------
 const file = join(tmpdir(), "borrowers-5000.csv");
