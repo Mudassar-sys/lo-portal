@@ -41,3 +41,6 @@ Thumbs.db
 # here.
 AGENTS.md
 [Cc][Ll][Aa][Uu][Dd][Ee].md
+
+.vercel
+.env*
