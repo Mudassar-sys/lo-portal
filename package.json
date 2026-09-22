@@ -21,7 +21,8 @@
     "verify:uploads": "node scripts/verify-uploads.mjs",
     "verify:scenarios": "node scripts/verify-scenarios.mjs",
     "sweep": "node scripts/secret-sweep.mjs",
-    "vercel:env": "node scripts/vercel-env.mjs"
+    "vercel:env": "node scripts/vercel-env.mjs",
+    "verify:scale": "node scripts/verify-scale.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

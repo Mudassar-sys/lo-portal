@@ -1,0 +1,48 @@
+Live response headers from the production deployment.
+captured 2026-09-22T17:07:35Z
+
+The deployment currently has Vercel Deployment Protection enabled, so a
+plain curl is answered by Vercel's own login page rather than by the
+portal. 'vercel curl' performs the documented automation bypass, so what
+follows is the portal's own response.
+
+$ npx vercel curl -I https://lo-portal-mudassar-sys-projects.vercel.app/login
+
+HTTP/1.1 200 OK
+Accept-Ranges: bytes
+Access-Control-Allow-Origin: *
+Age: 20
+Cache-Control: public, max-age=0, must-revalidate
+Content-Disposition: inline
+Content-Length: 16427
+Content-Security-Policy: frame-ancestors 'none'
+Content-Type: text/html; charset=utf-8
+Cross-Origin-Opener-Policy: same-origin
+Date: Tue, 22 Sep 2026 17:07:43 GMT
+Etag: "9f2e89a6cb72e96ecbfe3b3b08864a68"
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+Referrer-Policy: strict-origin-when-cross-origin
+Server: Vercel
+Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
+Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-Matched-Path: /login
+X-Nextjs-Prerender: 1
+X-Nextjs-Stale-Time: 300
+X-Robots-Tag: noindex
+X-Vercel-Cache: HIT
+X-Vercel-Id: bom1::hhgnj-1790096863035-18cf2d911787
+
+
+Required headers, each present above:
+  Strict-Transport-Security   max-age=63072000; includeSubDomains; preload
+  Content-Security-Policy     frame-ancestors 'none'
+  X-Frame-Options             DENY
+  X-Content-Type-Options      nosniff
+  Referrer-Policy             strict-origin-when-cross-origin
+  Permissions-Policy          camera, microphone, geolocation, payment, usb all off
+  Cross-Origin-Opener-Policy  same-origin
+
+All seven are set by next.config.ts, not by the host, so they travel with
+the application wherever it is deployed.

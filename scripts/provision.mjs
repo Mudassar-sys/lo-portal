@@ -49,6 +49,18 @@ if (missing.length) {
 }
 
 const HOOK_URI = "pg-functions://postgres/public/custom_access_token_hook";
+
+// Where the deployed portal lives, and the shapes Auth will accept a redirect
+// to. The globstar is the documented way to cover a host's preview URLs; the
+// production entry is exact, which is what the documentation recommends for
+// production. Localhost stays on the list so the same project still works for
+// local development.
+const SITE_URL = process.env.SITE_URL ?? "https://lo-portal-mudassar-sys-projects.vercel.app";
+const REDIRECT_URLS = [
+  `${SITE_URL}/**`,
+  "https://lo-portal-*-mudassar-sys-projects.vercel.app/**",
+  "http://localhost:3000/**",
+];
 const JWT_EXP = 600;
 const BUCKET = "borrower-docs";
 const MIME = ["application/pdf", "image/png", "image/jpeg"];
@@ -143,8 +155,11 @@ await management("PATCH", `/v1/projects/${env.ref}/config/auth`, {
   hook_custom_access_token_enabled: true,
   hook_custom_access_token_uri: HOOK_URI,
   jwt_exp: JWT_EXP,
+  site_url: SITE_URL,
+  uri_allow_list: REDIRECT_URLS.join(","),
 });
 say("  PATCH /v1/projects/<redacted>/config/auth sent");
+say(`  site URL and ${REDIRECT_URLS.length} redirect patterns included`);
 
 say("");
 say("step 3  storage bucket");
@@ -188,6 +203,12 @@ function assert(name, actual, expected) {
 assert("hook_custom_access_token_enabled", config.hook_custom_access_token_enabled, true);
 assert("hook_custom_access_token_uri", config.hook_custom_access_token_uri, HOOK_URI);
 assert("jwt_exp", config.jwt_exp, JWT_EXP);
+assert("site_url", config.site_url, SITE_URL);
+assert(
+  "uri_allow_list",
+  String(config.uri_allow_list ?? "").split(",").map((u) => u.trim()).sort(),
+  [...REDIRECT_URLS].sort()
+);
 
 const readBack = await storage.getBucket(BUCKET);
 if (readBack.error) fail(`getBucket: ${redact(readBack.error.message)}`);

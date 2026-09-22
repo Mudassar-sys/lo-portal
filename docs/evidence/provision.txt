@@ -1,5 +1,5 @@
 Provisioning of the project, run by scripts/provision.mjs.
-captured 2026-09-22T07:14:12.873Z
+captured 2026-09-22T17:00:23.307Z
 
 The project reference, the project URL, the database URL, the personal
 access token and the secret key are replaced with <redacted> before this
@@ -7,11 +7,11 @@ file is written. Nothing below was read back from a response body without
 passing through that filter.
 
 step 1  schema
-  applied supabase/schema.sql
-  seeded: 3 organisations, 9 seats, 40 borrowers
+  skipped, pass --apply-schema to run supabase/schema.sql
 
 step 2  auth config: access token hook and token lifetime
   PATCH /v1/projects/<redacted>/config/auth sent
+  site URL and 3 redirect patterns included
 
 step 3  storage bucket
   borrower-docs already existed, settings reapplied
@@ -26,6 +26,12 @@ step 4  read back and assert
   pass  jwt_exp
           expected 600
           observed 600
+  pass  site_url
+          expected "https://lo-portal-mudassar-sys-projects.vercel.app"
+          observed "https://lo-portal-mudassar-sys-projects.vercel.app"
+  pass  uri_allow_list
+          expected ["http://localhost:3000/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**","https://lo-portal-mudassar-sys-projects.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**","https://lo-portal-mudassar-sys-projects.vercel.app/**"]
   pass  bucket id
           expected "borrower-docs"
           observed "borrower-docs"
@@ -39,4 +45,4 @@ step 4  read back and assert
           expected 10485760
           observed 10485760
 
-7 assertions passed, 0 failed
+9 assertions passed, 0 failed

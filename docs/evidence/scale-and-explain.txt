@@ -1,0 +1,32 @@
+Generated 5000 rows at <temp>\borrowers-5000.csv
+Measured against http://localhost:3100
+
+1. importing 5000 rows through the browser
+        parsed and previewed in 3.5s
+        committed in 11.2s, 14.6s end to end
+  pass  all 5000 rows were inserted, the summary says 5000
+  pass  the plan's target is under 60 seconds, this run took 14.6s
+
+2. the list at that size
+        5015 borrowers, showing 1 to 25 held, 25 rows on the page
+  pass  the first page rendered in 0.68s, target is under 1s
+
+3. the query plan
+        explain (analyze) as the authenticated role, under the policies:
+          Limit  (cost=0.31..18.19 rows=16 width=80) (actual time=0.052..0.073 rows=25 loops=1)
+            Buffers: shared hit=6
+            InitPlan 1
+              ->  Result  (cost=0.00..0.03 rows=1 width=32) (actual time=0.024..0.024 rows=1 loops=1)
+            ->  Index Scan using borrowers_org_name_idx on borrowers  (cost=0.28..18.16 rows=16 width=80) (actual time=0.051..0.069 rows=25 loops=1)
+                  Index Cond: (org_id = ((InitPlan 1).col1)::uuid)
+                  Buffers: shared hit=6
+          Planning:
+            Buffers: shared hit=122
+          Planning Time: 1.163 ms
+          Execution Time: 0.120 ms
+  pass  the plan uses an index rather than a sequential scan
+
+all checks passed
+
+This run leaves 5,000 rows in the first organisation. npm run test:schema
+reapplies the schema and restores the seed.
