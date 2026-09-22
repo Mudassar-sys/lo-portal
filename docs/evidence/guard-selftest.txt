@@ -1,0 +1,32 @@
+Guard self test, 22 Sep 2026.
+
+Purpose: prove that scripts/guard.sh actually fires, rather than passing
+because its patterns are wrong. An earlier version of the dash check searched
+for the literal six character string that a dollar-quoted unicode escape
+produces on a bash build that does not expand it, so it could never have
+matched a real em dash. That is why this test exists.
+
+Method: write an untracked file containing (1) a real em dash, (2) the client
+name, (3) a secret key shaped string, stage it, run the guard, then delete it.
+
+$ npm run guard
+
+GUARD FAIL (tracked): term '<client-name>'
+guard-selftest.tmp:2:Client name check: <client-name> Inc.
+GUARD FAIL (staged): term '<client-name>' in:
+guard-selftest.tmp
+GUARD FAIL: em dash or en dash found
+guard-selftest.tmp:1:This line has an em dash <em-dash> right here.
+GUARD FAIL: possible key material
+guard-selftest.tmp:3:Key check: <secret-key-shaped-string>
+GUARD_EXIT=1
+
+The client name and the em dash are written as placeholders above, because the
+guard scans this file too and the real characters would make the repository
+fail its own check. That is the intended behaviour.
+
+After deleting the test file:
+
+$ npm run guard
+GUARD PASS: tracked and staged content clean
+GUARD_EXIT=0
