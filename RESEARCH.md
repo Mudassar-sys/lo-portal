@@ -159,3 +159,7 @@ version matched to the pinned release; lines citing it name the file.
 
 - Library added beyond the plan, per rule 9: playwright-core 1.63.0, a devDependency only, launched with `channel: "chrome"` so it drives the Chrome already installed rather than downloading a browser. Justification: the verification has to be done in a real browser with two isolated contexts, and the password must come from the environment rather than be typed by hand where it could end up in a log. Playwright is also one of the two tools the client's own QA posting names. https://www.npmjs.com/package/playwright-core - 22 Sep 2026
 - Observed while writing it: @supabase/ssr stores the session in cookies, not localStorage, and chunks the value across `.0`, `.1` and so on when it is long, prefixed `base64-`. Recovering the refresh token from the cookie jar is what turned "the other device is revoked" from an assertion into a proof: the refresh then returns "Invalid Refresh Token: Refresh Token Not Found".
+
+## playwright-core
+
+- playwright-core is the Playwright library without the bundled browsers, and `channel: "chrome"` runs the Chrome already installed on the machine. We use it for one job only, the auth verification screenshots in scripts/verify-auth.mjs, and not as a test runner: there is no @playwright/test, no config file and no test suite. https://playwright.dev/docs/browsers#google-chrome--microsoft-edge - 22 Sep 2026

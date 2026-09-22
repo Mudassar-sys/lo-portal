@@ -1,0 +1,198 @@
+Privilege defect found on the real project, and the fix.
+22 Sep 2026. Fixed in commit 9640078.
+
+All output below is real terminal output from this machine against the real
+project. Nothing is paraphrased or reconstructed.
+
+
+1. WHAT WAS WRONG
+-----------------------------------------------------------------------------
+The schema granted narrowly and, in two places, at column level:
+
+    grant select                         on public.organizations to authenticated;
+    grant update (display_name, logo_url, accent_color)
+                                         on public.organizations to authenticated;
+    grant select                         on public.seats         to authenticated;
+    grant update (label, role)           on public.seats         to authenticated;
+
+Those two column grants are a privilege boundary, not a nicety. They are what
+stops an org_admin granting itself the premium tier, and what stops it setting
+is_demo_admin, which is the flag that reaches the cross tenant demo switch.
+
+A GRANT only ever adds. The managed platform had already granted the API roles
+everything on every table in the public schema through default privileges on
+the schema, so the narrow grants sat on top of a wide one and restricted
+nothing.
+
+The local PGlite run did not reproduce this, because a bare PostgreSQL has no
+such default privileges. It passed while the real project failed. That gap is
+closed too, in section 5.
+
+
+2. HOW IT SHOWED UP
+-----------------------------------------------------------------------------
+$ npm run test:schema -- --tests-only
+
+    mode: real, against the project database over DATABASE_URL
+    PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+    FAIL  isolation tests (supabase/tests/isolation.sql)
+          an org_admin was able to set the premium flag
+
+The test that failed is this one, from supabase/tests/isolation.sql:
+
+    begin;
+      update public.organizations set premium = true where id = v_org_a;
+      raise exception 'an org_admin was able to set the premium flag';
+    exception
+      when insufficient_privilege then
+        insert into test_results (name, outcome, detail) values
+          ('org_admin cannot grant itself the premium tier', 'pass', ...);
+    end;
+
+
+3. THE QUERY USED TO PROVE IT
+-----------------------------------------------------------------------------
+    select grantee, privilege_type
+    from information_schema.role_table_grants
+    where table_schema = 'public'
+      and table_name = 'organizations'
+      and grantee in ('anon', 'authenticated')
+    order by grantee, privilege_type;
+
+
+4. BEFORE
+-----------------------------------------------------------------------------
+Output as captured, truncated at 40 rows by the query that produced it. The
+repetition is one row per grantor path; the distinct privilege set is what
+matters.
+
+    table-level grants on organizations:
+       anon DELETE
+       anon INSERT
+       anon INSERT
+       anon INSERT
+       anon INSERT
+       anon INSERT
+       anon INSERT
+       anon INSERT
+       anon REFERENCES
+       anon REFERENCES
+       anon REFERENCES
+       anon REFERENCES
+       anon REFERENCES
+       anon REFERENCES
+       anon REFERENCES
+       anon SELECT
+       anon SELECT
+       anon SELECT
+       anon SELECT
+       anon SELECT
+       anon SELECT
+       anon SELECT
+       anon TRIGGER
+       anon TRUNCATE
+       anon UPDATE
+       anon UPDATE
+       anon UPDATE
+       anon UPDATE
+       anon UPDATE
+       anon UPDATE
+       anon UPDATE
+       authenticated DELETE
+       authenticated INSERT
+       authenticated INSERT
+       authenticated INSERT
+       authenticated INSERT
+       authenticated INSERT
+       authenticated INSERT
+       authenticated INSERT
+
+So: anon, the unauthenticated role that the publishable key maps to, held
+SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on tenant
+tables, and authenticated held the same.
+
+Scope of the exposure, stated precisely rather than dramatically: row level
+security still denied anon every row, because no policy names anon, so no
+tenant data was reachable through it. Privileges and policies are two separate
+gates. One of them was open.
+
+
+5. THE FIX
+-----------------------------------------------------------------------------
+supabase/schema.sql now revokes before it grants, for all ten tables:
+
+    revoke all on public.organizations from anon, authenticated, public;
+    revoke all on public.seats from anon, authenticated, public;
+    revoke all on public.intake_links from anon, authenticated, public;
+    revoke all on public.borrowers from anon, authenticated, public;
+    revoke all on public.documents from anon, authenticated, public;
+    revoke all on public.scenarios from anon, authenticated, public;
+    revoke all on public.scenario_results from anon, authenticated, public;
+    revoke all on public.submissions from anon, authenticated, public;
+    revoke all on public.ledger_entries from anon, authenticated, public;
+    revoke all on public.audit_log from anon, authenticated, public;
+
+And supabase/tests/harness.sql reproduces the platform's behaviour, so the
+local engine cannot pass this again while the real project fails:
+
+    alter default privileges in schema public grant all on tables to anon, authenticated;
+
+That line was added before the revokes were written, and the local run then
+reproduced the real failure exactly:
+
+    FAIL  isolation tests (supabase/tests/isolation.sql)
+          an org_admin was able to set the premium flag
+
+
+6. AFTER
+-----------------------------------------------------------------------------
+$ node -e "... information_schema.role_table_grants ..."
+
+    AFTER, organizations:
+      authenticated: SELECT
+    AFTER, column level on organizations for authenticated:
+      accent_color SELECT
+      accent_color UPDATE
+      created_at SELECT
+      display_name SELECT
+      display_name UPDATE
+      id SELECT
+      logo_url SELECT
+      logo_url UPDATE
+      premium SELECT
+      slug SELECT
+
+anon holds nothing at all. authenticated holds table level SELECT, and UPDATE
+on exactly the three branding columns. premium is readable and not writable,
+which is the boundary the column grant was there to create.
+
+
+7. TESTS AFTER THE FIX
+-----------------------------------------------------------------------------
+$ npm run test:schema
+
+    mode: real, against the project database over DATABASE_URL
+    PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
+
+    ok    schema           supabase/schema.sql  (1316ms)
+    ok    isolation tests  supabase/tests/isolation.sql  (297ms)
+
+      pass  org_admin can rebrand its own tenant             1 row affected
+      pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+      pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+      pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+      pass  anon has no table privileges                     the public intake runs through one function instead
+
+    27 passed, 0 skipped, 0 failed  (mode: real)
+
+Full run in docs/evidence/schema-tests-real.txt.
+
+
+8. WHAT THIS IS WORTH REMEMBERING FOR
+-----------------------------------------------------------------------------
+A grant-only schema is not a restriction. On a managed platform that grants
+broadly by default, the only safe shape is revoke then grant. And a local
+emulator is only evidence to the extent that it reproduces the platform's
+starting state: this was found because the tests were run against the real
+project, not because they were read.
