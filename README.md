@@ -191,6 +191,10 @@ to WebAssembly:
 npm run test:schema -- --local
 ```
 
+## Preview deployments
+
+Every branch builds its own preview deployment, separate from production.
+
 ## Evidence
 
 - [VERIFICATION.md](VERIFICATION.md): the fourteen checks from the build plan,
