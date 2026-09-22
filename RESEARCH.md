@@ -50,3 +50,51 @@ version matched to the pinned release; lines citing it name the file.
 
 - Turbopack keeps a persistent filesystem cache under .next/cache and it is enabled by default for both `next dev` and `next build` in Next.js 16. https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache - 22 Sep 2026
 - Observed directly: that cache stores the build shell's environment variable names and values, so operator tooling strings can appear there even though no source file contains them. It is gitignored and is not part of the deployable output. Evidence docs/evidence/name-sweep.txt - 22 Sep 2026
+
+## Custom Access Token Hook
+
+- Required signature: `create or replace function public.custom_access_token_hook(event jsonb) returns jsonb language plpgsql as $$ ... $$;`. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
+- The event jsonb carries `user_id` (string), `claims` (object) and `authentication_method` (string, one of oauth, password, otp, totp, recovery, invite, sso/saml, magiclink, email/signup, email_change, token_refresh, oauth_provider/authorization_code, anonymous). https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
+- The returned claims object must still contain all required claims: iss, aud, exp, iat, sub, role, aal, session_id, email, phone, is_anonymous. The hook therefore adds to `event->'claims'` and never replaces it. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
+- Token issuance is refused by returning `{"error": {"http_code": 403, "message": "..."}}`. This is how seat takeover ends the losing session at its next refresh. https://supabase.com/docs/guides/auth/auth-hooks/custom-access-token-hook - 22 Sep 2026
+- Grants and revokes for the hook, verbatim from the RBAC guide: `grant usage on schema public to supabase_auth_admin;` then `grant execute on function public.custom_access_token_hook to supabase_auth_admin;` and `revoke execute on function public.custom_access_token_hook from authenticated, anon, public;` plus `grant all on table <table the hook reads> to supabase_auth_admin;`, `revoke all on table <that table> from authenticated, anon, public;` and a policy `as permissive for select to supabase_auth_admin using (true)`. https://supabase.com/docs/guides/database/postgres/custom-claims-and-role-based-access-control-rbac - 22 Sep 2026
+- Deliberate difference from that example: the guide's table is read only by the hook, so it is revoked from authenticated entirely. Our `seats` table is also read by the portal (the Sessions screen and assignment), so it keeps the supabase_auth_admin grant and policy AND a separate org scoped policy for authenticated. The revoke is therefore narrowed to anon and public. Recorded here because it is a departure from the doc example, not from the plan.
+
+## Row level security
+
+- CREATE POLICY synopsis: `CREATE POLICY name ON table_name [ AS { PERMISSIVE | RESTRICTIVE } ] [ FOR { ALL | SELECT | INSERT | UPDATE | DELETE } ] [ TO role ] [ USING (expr) ] [ WITH CHECK (expr) ]`. https://www.postgresql.org/docs/current/sql-createpolicy.html - 22 Sep 2026
+- Constraint that shapes the file: "A SELECT policy cannot have a WITH CHECK expression" and "A DELETE policy cannot have a WITH CHECK expression". An INSERT policy takes WITH CHECK only. So UPDATE is the only command that carries both clauses, which is exactly how section 3.4 of the plan writes them. Rule 5 of the kickoff is satisfied by that shape; both clauses on an insert or a delete is not valid SQL. https://www.postgresql.org/docs/current/sql-createpolicy.html - 22 Sep 2026
+- USING filters which existing rows are visible or modifiable; WITH CHECK validates the new or changed row. If WITH CHECK is omitted the USING expression applies to both, which is why every update policy here states both explicitly. https://www.postgresql.org/docs/current/ddl-rowsecurity.html - 22 Sep 2026
+- `ALTER TABLE t ENABLE ROW LEVEL SECURITY;` and, with no policy present, "a default-deny policy is used, meaning that no rows are visible or can be modified". https://www.postgresql.org/docs/current/ddl-rowsecurity.html - 22 Sep 2026
+- `ALTER TABLE t FORCE ROW LEVEL SECURITY;` makes the table owner subject to policies as well: "Table owners normally bypass row security as well, though a table owner can choose to be subject to row security". https://www.postgresql.org/docs/current/ddl-rowsecurity.html - 22 Sep 2026
+- Performance: wrap the claim read in a select, `using ( (select auth.jwt() ->> 'org_id') = ... )`, because "Wrapping the function causes an initPlan to be run by the Postgres optimizer, which allows it to cache the results per-statement, rather than calling the function on each row". https://supabase.com/docs/guides/database/postgres/row-level-security - 22 Sep 2026
+- Always name the role: "Always name the role a policy applies to, using the `to` clause." https://supabase.com/docs/guides/database/postgres/row-level-security - 22 Sep 2026
+- Index every column a policy filters on: "Add an index on every column your policies filter on ... an unindexed filter column turns a read into a sequential scan." https://supabase.com/docs/guides/database/postgres/row-level-security - 22 Sep 2026
+- Never use user_metadata in a policy: "creating an RLS policy that relies on the user_metadata claim can create security issues in your application as this information can be modified by authenticated end users". https://supabase.com/docs/guides/database/postgres/row-level-security - 22 Sep 2026
+
+## Explicit grants on public tables
+
+- "New tables in the public schema will no longer be exposed to the Data API automatically." Default for new projects from 30 May 2026, enforced on all existing projects from 30 October 2026. https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically - 22 Sep 2026
+- The documented grants to expose a table are `grant select on public.<table> to anon;` and `grant select, insert, update, delete on public.<table> to authenticated;`. This schema grants to authenticated only; anon gets nothing, because the only unauthenticated write path is the public intake form and that runs through a server side route, not the Data API. https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically - 22 Sep 2026
+
+## Storage
+
+- Object access is controlled by policies on the storage.objects table itself, and the first path segment is read with `(storage.foldername(name))[1]`, as in `create policy "Allow authenticated uploads" on storage.objects for insert to authenticated with check ( bucket_id = 'my_bucket_id' and (storage.foldername(name))[1] = 'private' );`. https://supabase.com/docs/guides/storage/security/access-control - 22 Sep 2026
+- Not verified and therefore not relied on: the published signature and return type of storage.foldername and storage.filename. That page shows the usage but not the signatures, so the schema uses only the documented `(storage.foldername(name))[1]` form.
+
+## The role claim: a contradiction with the plan, and the fix
+
+- The standard `role` claim in a Supabase access token is "The Postgres role to use when applying Row Level Security policies". https://supabase.com/docs/guides/auth/jwts - 22 Sep 2026
+- Section 3.3 of the plan says the hook "stamps org_id, role and seat_id". Taken literally that overwrites the claim above with org_admin, manager or loan_officer, and every request would then try to run as a Postgres role of that name. The portal role is therefore carried in a separate claim named org_role, and `role` is left as authenticated. Our own live reference repository does the same thing under the name app_role, so this is the house pattern and not an invention.
+- Proven, not assumed: supabase/tests/isolation.sql asserts that the hook returns `role` still equal to authenticated and `session_id` untouched, alongside the three claims it adds.
+
+## Testing the database half locally
+
+- Library added beyond the plan, per rule 9: @electric-sql/pglite 0.5.8, a devDependency only. Justification: it is PostgreSQL compiled to WebAssembly, so the schema and the policies can be executed by the real engine with no server, container or network, which turns Day 1's gate from a claim into a test. https://www.npmjs.com/package/@electric-sql/pglite - 22 Sep 2026
+- Disclosure, because it bounds what the local run proves: the engine reported by that build is "PostgreSQL 18.3 (PGlite 0.5.8)", while the managed project runs Postgres 17. Everything the schema uses (row level security, CREATE POLICY, FORCE ROW LEVEL SECURITY, SECURITY DEFINER, jsonb, identity columns) long predates either version, but the local run is not a substitute for running the same two files on the project. Observed in the run recorded at docs/evidence/schema-tests.txt - 22 Sep 2026
+- `pg_temp` is a search path alias and cannot be named in a GRANT; the real schema name comes from `pg_my_temp_schema()`. Observed directly: `grant usage on schema pg_temp` fails with "schema pg_temp does not exist". https://www.postgresql.org/docs/current/sql-grant.html - 22 Sep 2026
+
+## Two defects the local run caught
+
+- A function declared `stable` cannot execute a data modifying statement, so the access token hook must be volatile: it writes to seats when it claims one. https://www.postgresql.org/docs/current/xfunc-volatility.html - 22 Sep 2026
+- One trigger function serving several tables must not name a column of any one of them. The audit trigger converts the row to jsonb and asks whether the key is present, because `organizations` is the tenant itself and is keyed by id with no org_id column. Caught by the test run as "null value in column org_id of relation audit_log violates not-null constraint".

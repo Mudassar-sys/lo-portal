@@ -1,0 +1,48 @@
+$ npm run test:schema
+captured 2026-09-22T03:44:15Z
+---
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
+PostgreSQL 18.3 (PGlite 0.5.8) on wasm32-unknown-emscripten, compiled by emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 3.1.74 (1092ec30a3fb1d46b1782ff1b4db5094d3d06ae5), 32-bit
+
+ok    harness          supabase/tests/harness.sql  (18ms)
+ok    schema           supabase/schema.sql  (75ms)
+
+Seeded tenants:
+  Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
+  Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
+  Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
+ok    isolation tests  supabase/tests/isolation.sql  (73ms)
+
+  pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
+  pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
+  pass  cross tenant insert is rejected                  WITH CHECK raised SQLSTATE 42501
+  pass  changing org_id on a row is rejected             WITH CHECK raised SQLSTATE 42501
+  pass  update of a foreign row affects no rows          USING matched nothing, 0 rows affected
+  pass  loan_officer delete is refused                   0 rows affected and the row survives
+  pass  audit_log rejects application writes             no insert grant, SQLSTATE 42501
+  pass  token hook is not executable by users            execute revoked, SQLSTATE 42501
+  pass  storage write inside own tenant folder           object path starting with our org_id accepted
+  pass  storage write into a foreign folder is rejected  storage.objects WITH CHECK raised SQLSTATE 42501
+  pass  storage read of a foreign folder returns nothing object planted outside the policy is invisible
+  pass  org_admin can rebrand its own tenant             1 row affected
+  pass  org_admin cannot grant itself the premium tier   premium is outside the column grant, SQLSTATE 42501
+  pass  org_admin cannot make itself demo admin          is_demo_admin is outside the column grant, SQLSTATE 42501
+  pass  anon has no table access                         select on borrowers raised SQLSTATE 42501
+  pass  public intake writes only into the token tenant  the function takes no organisation argument
+  pass  unknown intake token is refused                  the function raises and writes nothing
+  pass  token hook stamps the tenant claims              org_id, org_role and seat_id all present and correct
+  pass  token hook leaves the role claim alone           role is still authenticated and session_id is untouched
+  pass  one live session per named seat                  the second session was refused with http_code 403
+  pass  RLS enabled and forced on every tenant table     10 tables checked in pg_class
+  pass  every policy names its role                      no policy applies to public
+  pass  no policy reads user_metadata                    checked public and storage policies
+  pass  org_id is indexed on every tenant table          organizations is keyed by id, the rest by org_id
+  pass  anon has no table privileges                     the public intake runs through one function instead
+  pass  audit_log has no write grant for users           select only, written by the trigger
+
+26 passed, 0 skipped, 0 failed
+---
+exit=0

@@ -11,7 +11,8 @@
     "guard": "bash scripts/guard.sh",
     "capture": "bash scripts/capture.sh",
     "guard:selftest": "bash scripts/guard-selftest.sh",
-    "hooks:install": "git config core.hooksPath .githooks"
+    "hooks:install": "git config core.hooksPath .githooks",
+    "test:schema": "node scripts/test-schema.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -22,6 +23,7 @@
     "react-dom": "19.3.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "24.10.1",
     "@types/papaparse": "5.5.2",
