@@ -1,0 +1,20 @@
+Captured 22 Sep 2026 while deciding the TypeScript pin.
+Command: npx --no-install eslint .
+Installed at the time: typescript 7.0.2, eslint 9.39.1, eslint-config-next 16.3.5
+
+--- verbatim output (head) ---
+typescript-eslint does not support TS 7.0.
+Please see https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/#running-side-by-side-with-typescript-6.0 to run typescript-eslint using the TS 6 API.
+See also https://github.com/typescript-eslint/typescript-eslint/issues/10940 for tracking typescript-eslint's support for TS >=7.1
+
+Oops! Something went wrong! :(
+
+ESLint: 9.39.1
+
+Error: Cannot read config file: node_modules/eslint-config-next/dist/core-web-vitals.js
+Error: typescript-eslint does not support TS 7.0.
+--- end ---
+
+Outcome: typescript pinned to 5.9.3, which is inside the range
+typescript-eslint publishes (>=4.8.4 <6.1.0) and above the Next.js 16
+minimum of 5.1.0. After the change, npx eslint . exits 0.
