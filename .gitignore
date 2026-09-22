@@ -10,12 +10,13 @@
 next-env.d.ts
 
 # environment. Never commit a key.
-.env
-.env.local
-.env.*.local
-.env.development.local
-.env.test.local
-.env.production.local
+#
+# A catch all, because the specific names missed a real case: a file saved as
+# .env.local.txt matched none of them and sat in the working tree, untracked
+# but committable, holding live credentials. Anything beginning .env is
+# ignored, and the example file is the single exception.
+.env*
+!.env.example
 
 # vercel
 .vercel

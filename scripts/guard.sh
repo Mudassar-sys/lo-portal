@@ -84,9 +84,18 @@ for k in "${KEYSIG[@]}"; do
   fi
 done
 
-# 5. .env.local must never be tracked.
-if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
-  echo "GUARD FAIL: .env.local is tracked"
+# 5. No environment file may be tracked or staged, whatever it is called.
+#
+# The earlier version of this check named .env.local only. That is exactly the
+# hole that let a file saved as .env.local.txt sit in the working tree holding
+# live credentials, matched by no ignore rule and caught by no check. Anything
+# beginning .env is refused here; the example file, which carries names and no
+# values, is the one exception. git ls-files reads the index, so a staged file
+# is caught before it can be committed.
+envtracked=$(git ls-files -- '.env*' | grep -v '^\.env\.example$' || true)
+if [ -n "$envtracked" ]; then
+  echo "GUARD FAIL: an environment file is tracked or staged:"
+  echo "$envtracked"
   fail=1
 fi
 
