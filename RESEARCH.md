@@ -131,3 +131,31 @@ version matched to the pinned release; lines citing it name the file.
 - Without `turbopack.root`, Turbopack searches upward for a lock file and can adopt one from outside the repository: "Next.js ignored package-lock.json in <home> because it is outside the current Git repository ... To use this directory, set `turbopack.root` in your Next.js config." Set to the repository root. Observed on next 16.3.5 - 22 Sep 2026
 - Both were caught by the repository guard rather than by review, which is the point of it. The guard now also checks file and directory names, not only contents, and refuses the literal banned words in its own tracked files: the .gitignore entry for the generated file is written as a character class for that reason.
 - Scope correction to guard check 6, stated because it narrows a claim made in the previous report: the build output is scanned for the client, sister company, person and platform names only. It is not scanned for AI tool names, because a bundled dependency carries such strings in its own docstrings: one vendored source map contains an example vector index name built from a model vendor's name. That is neither ours to remove nor evidence of anything. Everything this repository authors is still checked for both sets.
+
+## Management API, for provisioning
+
+- Base URL is https://api.supabase.com and "All API requests must be authenticated and made over HTTPS", with a personal access token sent as `Authorization: Bearer sbp_...`. The docs also warn that "PATs carry the same privileges as your user account", which is why that variable is the most sensitive one in .env.local and is used by one script only. https://supabase.com/docs/reference/api/introduction - 22 Sep 2026
+- Rate limit: 120 requests per minute, per user, per project or organisation, returning 429 for the rest of the minute once exceeded. The provisioner makes five calls. Same URL - 22 Sep 2026
+- The auth service config endpoint is `PATCH /v1/projects/{ref}/config/auth`, and the same path answers GET for reading the config back. https://supabase.com/docs/reference/api/v1-update-auth-service-config - 22 Sep 2026
+- Field names on that endpoint, read from its own body schema: `hook_custom_access_token_enabled` (boolean), `hook_custom_access_token_uri` (string), `hook_custom_access_token_secrets` (string), and `jwt_exp` (integer). Same URL - 22 Sep 2026
+- The hook URI form for a Postgres function is `pg-functions://postgres/<schema>/<function_name>`, so ours is `pg-functions://postgres/public/custom_access_token_hook`. The same page repeats the grant this schema already carries: "grant execute on function public.custom_access_token_hook to supabase_auth_admin". https://supabase.com/docs/guides/auth/auth-hooks - 22 Sep 2026
+
+## Storage bucket options
+
+- `createBucket(id, options)` takes `public`, `allowedMimeTypes` and `fileSizeLimit`, shown as `createBucket('avatars', { public: false, allowedMimeTypes: ['image/png'], fileSizeLimit: 1024 })`. https://supabase.com/docs/reference/javascript/storage-createbucket - 22 Sep 2026
+- Creating a bucket needs insert on the buckets table, so the provisioner uses the secret key for this call. That is the second of the two permitted uses of that key, and neither is in a request path. Same URL - 22 Sep 2026
+- The MIME types for the three formats the plan allows are application/pdf, image/png and image/jpeg. Note that jpg is not a MIME type; image/jpeg covers both .jpg and .jpeg. https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types - 22 Sep 2026
+
+## A privilege defect found only on the real project
+
+- On the project as first provisioned, `anon` and `authenticated` each held SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES and TRIGGER on every table in the public schema. Read directly from information_schema.role_table_grants on the project, not inferred.
+- Consequence: the column level grants in the schema restricted nothing, because they only ADD privileges. The two tests that protect the tenant boundary from an administrator, "cannot grant itself the premium tier" and "cannot make itself demo admin", both failed on the real project while passing locally. The second of those is the flag that reaches the cross tenant demo switch.
+- Row level security still denied anon every row, because no policy names anon, so this was not an open data path. Privileges and policies are two separate gates and this one was wrong.
+- Fix: the schema now revokes all privileges on each of the ten tables from anon, authenticated and public before granting exactly what each role needs.
+- Harness fidelity: supabase/tests/harness.sql now runs `alter default privileges in schema public grant all on tables to anon, authenticated`, which reproduces the platform's behaviour. Proven rather than assumed: with that line added and the revokes not yet written, the local run reproduced the same failure the real project gave. https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html - 22 Sep 2026
+- Second defect found by the same real run: dropping public.write_audit() before the tables fails on any re-run, because their audit triggers depend on it. The drop order now puts tables first, so the cascade removes the triggers before the function is dropped.
+
+## Browser verification
+
+- Library added beyond the plan, per rule 9: playwright-core 1.63.0, a devDependency only, launched with `channel: "chrome"` so it drives the Chrome already installed rather than downloading a browser. Justification: the verification has to be done in a real browser with two isolated contexts, and the password must come from the environment rather than be typed by hand where it could end up in a log. Playwright is also one of the two tools the client's own QA posting names. https://www.npmjs.com/package/playwright-core - 22 Sep 2026
+- Observed while writing it: @supabase/ssr stores the session in cookies, not localStorage, and chunks the value across `.0`, `.1` and so on when it is long, prefixed `base64-`. Recovering the refresh token from the cookie jar is what turned "the other device is revoked" from an assertion into a proof: the refresh then returns "Invalid Refresh Token: Refresh Token Not Found".

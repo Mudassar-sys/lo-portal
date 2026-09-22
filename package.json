@@ -13,7 +13,9 @@
     "guard:selftest": "bash scripts/guard-selftest.sh",
     "hooks:install": "git config core.hooksPath .githooks",
     "test:schema": "node scripts/test-schema.mjs",
-    "seed:users": "node scripts/seed-users.mjs"
+    "seed:users": "node scripts/seed-users.mjs",
+    "provision": "node scripts/provision.mjs",
+    "verify:auth": "node scripts/verify-auth.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
@@ -33,6 +35,7 @@
     "eslint": "9.39.1",
     "eslint-config-next": "16.3.5",
     "pg": "^8.23.0",
+    "playwright-core": "^1.63.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"
   }

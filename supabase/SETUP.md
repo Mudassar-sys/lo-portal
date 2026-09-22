@@ -1,8 +1,8 @@
 # Project setup, in order
 
-Everything in this file is done by hand in the dashboard or in the SQL editor.
-No key is ever printed, echoed or committed by the repository, and `.env.local`
-is ignored from the first commit.
+Steps 1 and 2 are done by hand. Everything after that is one command, and the
+manual equivalents are kept below so a reviewer can check what was changed.
+No key is ever printed, echoed or committed by the repository.
 
 ## 1. Create the project
 
@@ -14,7 +14,7 @@ is ignored from the first commit.
 
 ## 2. Fill in `.env.local`
 
-Copy `.env.example` to `.env.local` and fill in all five values:
+Copy `.env.example` to `.env.local` and fill in all seven values:
 
 - `NEXT_PUBLIC_SUPABASE_URL` from Settings, Data API, Project URL.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from Settings, API Keys, the
@@ -24,13 +24,39 @@ Copy `.env.example` to `.env.local` and fill in all five values:
 - `DATABASE_URL` from Settings, Database, connection string.
 - `DEMO_PASSWORD`, which you choose. It becomes the password of all nine demo
   seat accounts and it is yours to hand out.
+- `SUPABASE_ACCESS_TOKEN`, a personal access token from the account tokens
+  page. It is account wide, so it is the most sensitive value here and it is
+  read by `scripts/provision.mjs` alone.
+- `SUPABASE_PROJECT_REF`, the subdomain of the project URL.
 
 Use the publishable and secret keys, not the legacy `anon` and `service_role`
 keys. The secret key bypasses row level security, so nothing in request
-handling touches it: it is read by `scripts/seed-users.mjs` and by nothing
-else. The browser only ever receives the publishable key.
+handling touches it: it is read by `scripts/seed-users.mjs` and
+`scripts/provision.mjs` and by nothing else. The browser only ever receives
+the publishable key.
 
-## 3. Run the schema
+The file must be named exactly `.env.local`. Anything starting `.env` is
+gitignored except the example, and the guard refuses any tracked or staged
+environment file under any name, because a file once saved here as
+`.env.local.txt` matched no ignore rule and sat in the tree holding live
+credentials.
+
+## 3. Run everything in one command
+
+```bash
+npm run provision -- --apply-schema
+```
+
+This applies `supabase/schema.sql`, enables the access token hook at
+`public.custom_access_token_hook`, sets the access token lifetime to 600
+seconds, creates the private `borrower-docs` bucket with its size limit and
+allowed types, then reads all of it back off the project and asserts it.
+Redacted evidence is written to `docs/evidence/provision.txt`.
+
+Steps 3 to 5 below are what it does, kept here because a reviewer will want to
+know what was changed and be able to check it by hand.
+
+## 3a. Run the schema
 
 Open the SQL editor, paste the whole of `supabase/schema.sql`, run it. It
 finishes by printing one row per organisation with the seeded counts, which

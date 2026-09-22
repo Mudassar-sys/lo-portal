@@ -33,7 +33,10 @@ try {
   // No .env.local is a normal state before the project exists. Local mode.
 }
 
-const databaseUrl = process.env.DATABASE_URL;
+// --local forces the emulator even when DATABASE_URL is set, which is how the
+// harness is checked for fidelity against the real project.
+const forceLocal = process.argv.includes("--local");
+const databaseUrl = forceLocal ? undefined : process.env.DATABASE_URL;
 const mode = databaseUrl ? "real" : "local";
 
 const pad = (s, n) => String(s).padEnd(n);

@@ -1,0 +1,42 @@
+Provisioning of the project, run by scripts/provision.mjs.
+captured 2026-09-22T07:14:12.873Z
+
+The project reference, the project URL, the database URL, the personal
+access token and the secret key are replaced with <redacted> before this
+file is written. Nothing below was read back from a response body without
+passing through that filter.
+
+step 1  schema
+  applied supabase/schema.sql
+  seeded: 3 organisations, 9 seats, 40 borrowers
+
+step 2  auth config: access token hook and token lifetime
+  PATCH /v1/projects/<redacted>/config/auth sent
+
+step 3  storage bucket
+  borrower-docs already existed, settings reapplied
+
+step 4  read back and assert
+  pass  hook_custom_access_token_enabled
+          expected true
+          observed true
+  pass  hook_custom_access_token_uri
+          expected "pg-functions://postgres/public/custom_access_token_hook"
+          observed "pg-functions://postgres/public/custom_access_token_hook"
+  pass  jwt_exp
+          expected 600
+          observed 600
+  pass  bucket id
+          expected "borrower-docs"
+          observed "borrower-docs"
+  pass  bucket is private
+          expected false
+          observed false
+  pass  bucket allowed_mime_types
+          expected ["application/pdf","image/png","image/jpeg"]
+          observed ["application/pdf","image/png","image/jpeg"]
+  pass  bucket file_size_limit
+          expected 10485760
+          observed 10485760
+
+7 assertions passed, 0 failed

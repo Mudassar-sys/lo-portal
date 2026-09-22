@@ -37,11 +37,6 @@ drop policy if exists docs_insert on storage.objects;
 drop policy if exists docs_update on storage.objects;
 drop policy if exists docs_delete on storage.objects;
 
-drop function if exists public.custom_access_token_hook(jsonb);
-drop function if exists public.claim_seat_session(uuid);
-drop function if exists public.submit_intake(text, text, text, text, text);
-drop function if exists public.write_audit();
-
 drop table if exists public.audit_log cascade;
 drop table if exists public.ledger_entries cascade;
 drop table if exists public.submissions cascade;
@@ -52,6 +47,15 @@ drop table if exists public.borrowers cascade;
 drop table if exists public.intake_links cascade;
 drop table if exists public.seats cascade;
 drop table if exists public.organizations cascade;
+
+-- The tables go first on purpose. Their audit triggers depend on
+-- public.write_audit(), so dropping the function before the tables fails on
+-- any re-run with "cannot drop function write_audit() because other objects
+-- depend on it". Dropping the tables cascades their triggers away first.
+drop function if exists public.custom_access_token_hook(jsonb);
+drop function if exists public.claim_seat_session(uuid);
+drop function if exists public.submit_intake(text, text, text, text, text);
+drop function if exists public.write_audit();
 
 -- ---------------------------------------------------------------------------
 -- 1. Tables
@@ -224,6 +228,33 @@ create index ledger_period_idx             on public.ledger_entries (org_id, per
 -- product is the public borrower intake form, and that goes through one
 -- security definer function, not through table access.
 -- ---------------------------------------------------------------------------
+-- Revoke first, then grant exactly. This order is not decoration.
+--
+-- The managed platform hands the API roles broad privileges on everything
+-- created in the public schema, through default privileges on the schema. A
+-- schema that only ADDS narrow grants therefore restricts nothing: the wide
+-- grant is still underneath it. On the project as first provisioned, anon and
+-- authenticated both held SELECT, INSERT, UPDATE, DELETE, TRUNCATE,
+-- REFERENCES and TRIGGER on every one of these tables, which defeats the
+-- column level boundary below and leaves an unauthenticated role holding
+-- write privileges on tenant data. Row level security still denied it rows,
+-- because no policy names anon, but privileges and policies are two different
+-- gates and both have to be right.
+--
+-- This was found by running the isolation tests against the real project. The
+-- local engine did not reproduce it until supabase/tests/harness.sql was
+-- taught the same default privileges.
+revoke all on public.organizations from anon, authenticated, public;
+revoke all on public.seats from anon, authenticated, public;
+revoke all on public.intake_links from anon, authenticated, public;
+revoke all on public.borrowers from anon, authenticated, public;
+revoke all on public.documents from anon, authenticated, public;
+revoke all on public.scenarios from anon, authenticated, public;
+revoke all on public.scenario_results from anon, authenticated, public;
+revoke all on public.submissions from anon, authenticated, public;
+revoke all on public.ledger_entries from anon, authenticated, public;
+revoke all on public.audit_log from anon, authenticated, public;
+
 grant usage on schema public to authenticated;
 
 -- Column level on purpose. An org_admin brands the organisation; it must not

@@ -22,6 +22,14 @@ create role anon nologin;
 create role authenticated nologin;
 create role supabase_auth_admin nologin;
 
+-- The managed platform grants the API roles broad privileges on everything
+-- created in the public schema, through default privileges. Reproducing that
+-- here matters more than it looks: without it, a schema that only ADDS narrow
+-- grants appears to restrict access locally while the real project leaves the
+-- wide grant in place underneath. That is not hypothetical. It was caught on
+-- the real project and not here, and this line is why it cannot happen again.
+alter default privileges in schema public grant all on tables to anon, authenticated;
+
 -- ---------------------------------------------------------------------------
 -- auth
 -- ---------------------------------------------------------------------------

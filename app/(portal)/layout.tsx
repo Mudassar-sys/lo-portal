@@ -31,9 +31,13 @@ export default async function PortalLayout({
               <p className="truncate text-sm font-semibold tracking-tight">
                 {org.display_name}
               </p>
-              <p className="text-xs text-muted">
-                on Fieldstone Lending Network
-                {org.premium ? " . Premium" : ""}
+              <p className="flex items-center gap-1.5 text-xs text-muted">
+                <span className="truncate">on Fieldstone Lending Network</span>
+                {org.premium ? (
+                  <span className="rounded border border-(--accent)/40 px-1 py-px text-[10px] font-medium text-(--accent)">
+                    Premium
+                  </span>
+                ) : null}
               </p>
             </div>
           </div>
