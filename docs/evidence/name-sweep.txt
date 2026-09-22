@@ -1,0 +1,53 @@
+Name sweep after moving the repository out of the client named folder.
+22 Sep 2026. Repository root is now a path that contains no client name.
+
+Method: delete the stale build output that was carried over from the old path,
+run a fresh production build, then grep case insensitively for the client
+name, the sister company, the four person names, the platform name and six AI
+tool names. Terms are written as placeholders in this file because the guard
+scans it.
+
+$ Remove-Item -Recurse -Force .next ; Remove-Item -Force tsconfig.tsbuildinfo
+$ npm run build
+Compiled successfully in 4.5s
+
+$ grep -ril <client-name> .next        -> 0 files
+$ grep -ril <client-name> docs         -> 0 files
+$ grep -ril <client-name> .  (excluding node_modules and .git) -> 0 files
+
+Per term, whole repository, excluding node_modules and .git:
+  <sister-company>   0
+  <founder-first>    0
+  <founder-last>     0
+  <tech-pm-last>     0
+  <partner-last>     0
+  <ai-tool-1>        1   see below
+  <ai-tool-2>        1   see below
+  <ai-tool-3>        0
+  <ai-tool-4>        0
+  <ai-tool-5>        0
+  <platform-name>    0
+
+The two hits are the same single file:
+  .next/cache/turbopack/v16.3.5-ca2c75eb/00000003.sst
+
+Cause, read directly out of that file: Turbopack's persistent filesystem cache
+snapshots the environment variables of the shell that ran the build. The shell
+used here exports a base URL and an agent name belonging to the operator's own
+tooling, so those strings land in the cache file. Nothing in the source tree
+contains them.
+
+Containment, each proven rather than assumed:
+1. The file is gitignored. `git check-ignore -v` on it returns
+   ".gitignore:7:/.next/", so it cannot enter a commit.
+2. The deployable artefact is clean. Scanning every file under .next except
+   .next/cache for all of the terms above returns 0 files.
+3. scripts/guard.sh now scans the build output as check 6, excluding
+   .next/cache for the reason above, so this is enforced on every commit
+   rather than checked once.
+
+$ npm run guard
+GUARD PASS: tracked and staged content clean
+
+$ npm run guard:selftest
+SELFTEST PASS: every guard check fires on a poisoned tree and clears on a clean one

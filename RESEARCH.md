@@ -29,7 +29,7 @@ version matched to the pinned release; lines citing it name the file.
 - typescript-eslint supports TypeScript ">=4.8.4 <6.1.0" only, so TypeScript 7.0 cannot be linted. https://typescript-eslint.io/users/dependency-versions/ - 22 Sep 2026
 - Observed directly: with typescript 7.0.2 installed, `npx eslint .` aborts with "typescript-eslint does not support TS 7.0." and ESLint exits non zero. Recorded in docs/evidence/lint-ts7-failure.txt - 22 Sep 2026
 - Next.js 16 requires TypeScript 5.1.0 or newer as a minimum, so 5.9.3 is inside the supported range. node_modules/next/dist/docs/01-app/02-guides/... upgrade guide, "TypeScript 5+ Minimum version now 5.1.0". https://nextjs.org/docs/app/guides/upgrading/version-16 - 22 Sep 2026
-- Decision: pinned typescript 5.9.3. This is the one deviation from the version list in section 10 of the plan, and it is required to satisfy rule 8 (ESLint clean).
+- Decision: pinned typescript 5.9.3. CLOSED 22 Sep 2026: approved by the Solutions Lead and section 9 plus the pin list of the plan were amended to match, so the plan and the repository now agree. It is no longer a deviation.
 
 ## Next.js 16 conventions
 
@@ -45,3 +45,8 @@ version matched to the pinned release; lines citing it name the file.
 ## Tailwind CSS 4
 
 - Manual dark mode by class uses `@custom-variant dark (&:where(.dark, .dark *));` after `@import "tailwindcss";`. This overrides the default `prefers-color-scheme` behaviour. https://tailwindcss.com/docs/dark-mode - 22 Sep 2026
+
+## Repository hygiene
+
+- Turbopack keeps a persistent filesystem cache under .next/cache and it is enabled by default for both `next dev` and `next build` in Next.js 16. https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache - 22 Sep 2026
+- Observed directly: that cache stores the build shell's environment variable names and values, so operator tooling strings can appear there even though no source file contains them. It is gitignored and is not part of the deployable output. Evidence docs/evidence/name-sweep.txt - 22 Sep 2026

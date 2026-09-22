@@ -80,6 +80,22 @@ if git ls-files --error-unmatch .env.local >/dev/null 2>&1; then
   fail=1
 fi
 
+# 6. The deployable build output, when one exists. .next/cache is excluded on
+# purpose: Turbopack's filesystem cache snapshots the environment variables of
+# whatever shell ran the build, so it can hold names from the operator's own
+# machine. That directory is gitignored and is never uploaded to a deployment,
+# while everything else under .next is the artefact that actually ships.
+if [ -d .next ]; then
+  for t in "${TERMS[@]}"; do
+    hits=$(find .next -type f -not -path ".next/cache/*" -exec grep -lia -- "$t" {} + 2>/dev/null || true)
+    if [ -n "$hits" ]; then
+      echo "GUARD FAIL (build output): term '$t' in:"
+      echo "$hits"
+      fail=1
+    fi
+  done
+fi
+
 if [ "$fail" -eq 0 ]; then
   echo "GUARD PASS: tracked and staged content clean"
 fi

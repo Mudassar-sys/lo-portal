@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Enable with: npm run hooks:install
+# Refuses the commit unless the guard passes AND the guard is proven to work.
+set -uo pipefail
+root="$(git rev-parse --show-toplevel)"
+bash "$root/scripts/guard-selftest.sh" || { echo "pre-commit: guard self test failed"; exit 1; }
+bash "$root/scripts/guard.sh" || { echo "pre-commit: guard failed"; exit 1; }

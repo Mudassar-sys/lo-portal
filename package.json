@@ -9,7 +9,9 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "guard": "bash scripts/guard.sh",
-    "capture": "bash scripts/capture.sh"
+    "capture": "bash scripts/capture.sh",
+    "guard:selftest": "bash scripts/guard-selftest.sh",
+    "hooks:install": "git config core.hooksPath .githooks"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
