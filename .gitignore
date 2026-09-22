@@ -1,0 +1,35 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next build output
+/.next/
+/out/
+/build
+next-env.d.ts
+
+# environment. Never commit a key.
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+
+# os and editors
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+
+# local scratch
+/tmp/
+*.log
