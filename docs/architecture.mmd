@@ -1,0 +1,31 @@
+flowchart TB
+    subgraph browser["Browser"]
+        ui["React 19 screens, publishable key only"]
+    end
+
+    subgraph vercel["Next.js 16 on Vercel"]
+        proxy["proxy.ts, getClaims before anything else"]
+        rsc["Server Components, no org_id in any query"]
+        actions["Server Actions, requireClaims every time"]
+        mock["Matching service, a local deterministic mock"]
+    end
+
+    subgraph supabase["Supabase project"]
+        auth["Auth, access token hook stamps org_id, org_role and seat_id"]
+        db[("PostgreSQL 17, RLS and FORCE RLS on ten tables")]
+        storage["Storage, policies on storage.objects, path begins with org_id"]
+    end
+
+    seed["Seeding and provisioning scripts, the only place the secret key is used"]
+
+    ui --> proxy
+    ui --> actions
+    ui --> storage
+    proxy --> rsc
+    proxy --> auth
+    actions --> mock
+    actions --> db
+    rsc --> db
+    auth --> db
+    auth --> storage
+    seed -.-> db

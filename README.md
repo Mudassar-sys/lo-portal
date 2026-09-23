@@ -51,38 +51,66 @@ record does not exist as far as the second tenant's queries are concerned.
 
 ## Architecture
 
+<img src="docs/architecture.svg" alt="Browser, Next.js on Vercel and the Supabase project, with every request path running as the signed in user" width="100%">
+
+Which arrow means what:
+
+- The browser holds the publishable key only, and reaches the proxy, the
+  server actions and storage.
+- `proxy.ts` calls `getClaims` before anything else, and is the only thing
+  that talks to Auth about verifying or refreshing a token.
+- Server Components and Server Actions reach PostgreSQL **as the signed in
+  user**, never as an admin, so row level security applies to them.
+- Auth stamps the claims that every policy in the database and in storage
+  reads.
+- The dotted arrow is the seeding and provisioning scripts. They hold the
+  secret key and never run inside a request.
+
+<details>
+<summary>Diagram source</summary>
+
 ```mermaid
 flowchart TB
     subgraph browser["Browser"]
-        ui["React 19 screens<br/>publishable key only"]
+        ui["React 19 screens, publishable key only"]
     end
 
     subgraph vercel["Next.js 16 on Vercel"]
-        proxy["proxy.ts<br/>getClaims before anything else"]
-        rsc["Server Components<br/>no org_id in any query"]
-        actions["Server Actions<br/>requireClaims every time"]
-        mock["Matching service, mock<br/>local, deterministic, calls nothing"]
+        proxy["proxy.ts, getClaims before anything else"]
+        rsc["Server Components, no org_id in any query"]
+        actions["Server Actions, requireClaims every time"]
+        mock["Matching service, a local deterministic mock"]
     end
 
     subgraph supabase["Supabase project"]
-        auth["Auth<br/>custom access token hook<br/>stamps org_id, org_role, seat_id"]
-        db[("PostgreSQL 17<br/>RLS and FORCE RLS on 10 tables")]
-        storage["Storage<br/>policies on storage.objects<br/>path begins with org_id"]
+        auth["Auth, access token hook stamps org_id, org_role and seat_id"]
+        db[("PostgreSQL 17, RLS and FORCE RLS on ten tables")]
+        storage["Storage, policies on storage.objects, path begins with org_id"]
     end
 
-    ui -->|cookies| proxy
-    proxy --> rsc
-    ui -->|form submit| actions
-    actions --> mock
-    proxy -->|verify and refresh token| auth
-    rsc -->|as the signed in user| db
-    actions -->|as the signed in user| db
-    ui -->|upload, as the signed in user| storage
-    auth -->|claims in every token| db
-    auth -->|claims in every token| storage
+    seed["Seeding and provisioning scripts, the only place the secret key is used"]
 
-    seed["Seeding and provisioning scripts<br/>the only place the secret key is used"] -.->|never in a request| db
+    ui --> proxy
+    ui --> actions
+    ui --> storage
+    proxy --> rsc
+    proxy --> auth
+    actions --> mock
+    actions --> db
+    rsc --> db
+    auth --> db
+    auth --> storage
+    seed -.-> db
 ```
+
+Rendered to `docs/architecture.svg` with
+[mermaid-cli](https://github.com/mermaid-js/mermaid-cli):
+
+```bash
+npm run diagram
+```
+
+</details>
 
 Every request runs as the signed in user. The secret key, which bypasses row
 level security, is used by two scripts and by nothing in any request path.

@@ -29,7 +29,8 @@
     "final": "node scripts/final-run.mjs",
     "protection:status": "node scripts/protection.mjs --status",
     "protection:off": "node scripts/protection.mjs",
-    "verify:live:notfound": "node scripts/verify-live-notfound.mjs"
+    "verify:live:notfound": "node scripts/verify-live-notfound.mjs",
+    "diagram": "npx -y -p @mermaid-js/mermaid-cli mmdc -i docs/architecture.mmd -o docs/architecture.svg -c docs/architecture.theme.json -b \"#0a111a\" -w 1100"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
