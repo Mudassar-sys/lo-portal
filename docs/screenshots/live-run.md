@@ -427,3 +427,77 @@ Restoring the clean seed after the last run.
   test:schema: 32 passed, 0 skipped, 0 failed  (mode: real)
   seed:documents: 12 uploaded, 0 already present
 ```
+
+## Re-run after the not found fix, 23 September 2026
+
+The owner's review of `live/22-cross-tenant-borrower-url.png` found the
+framework's default 404 rendering white inside the dark portal. Four surfaces
+reach a not found state, and all four were rebuilt as one designed dead end
+and re-run against the alias in a headed Chrome window by
+`npm run verify:live:notfound`. The screenshots below replace the ones the
+full run produced, by name.
+
+Measuring the HTTP status found a second defect the screenshot could not
+show: `/borrowers/[id]` answered **200**, not 404, because
+`app/(portal)/borrowers/loading.tsx` wrapped the nested route and a streamed
+response cannot set a status. `/scenarios/[id]`, with no loading file above
+it, answered 404. Scoping the skeleton to the list with a `(list)` route
+group fixed it without losing the list's loading state, which the borrowers
+suite still proves.
+
+| URL | before | after |
+| --- | --- | --- |
+| a borrower id belonging to another lender | 200, default page | **404**, designed |
+| a scenario id belonging to another lender | 404, default page | **404**, designed |
+| an unknown intake token, no session | 404, default page | **404**, designed |
+| a route that matches nothing | 404, default page | **404**, designed |
+
+```
+# Not found surfaces, on the deployed alias
+
+target        https://fieldstone-portal.vercel.app
+started       2026-09-23T05:54:35.043Z
+browser       Chrome, channel "chrome", headless false
+
+ROW 4  a borrower id that belongs to another lender
+    note  HTTP 404 for /borrowers/d945241a-0c96-4c67-89cd-bb5c415f0c3f
+    pass  the document response is 404, saw 404
+    pass  the page keeps the dark shell, body background lab(4.76673 -0.414066 -6.87106)
+    pass  the heading is the designed one: Nothing here for this organisation
+    pass  the framework's default 404 text is not on the page
+    pass  nothing on the page says whether the record exists for anyone else
+    pass  there is a way back, a link to /borrowers
+    shot  docs/screenshots/live/22-cross-tenant-borrower-url.png
+
+ROW 4  a scenario id that belongs to another lender
+    note  HTTP 404 for /scenarios/b6be5176-6d85-47b1-8b06-a7084b2e4691
+    pass  the document response is 404, saw 404
+    pass  the page keeps the dark shell, body background lab(4.76673 -0.414066 -6.87106)
+    pass  the heading is the designed one: Nothing here for this organisation
+    pass  the framework's default 404 text is not on the page
+    pass  nothing on the page says whether the record exists for anyone else
+    pass  there is a way back, a link to /scenarios
+    shot  docs/screenshots/live/23-cross-tenant-scenario-url.png
+
+ROW 7  an intake token that does not exist, with no session at all
+    note  HTTP 404 for /intake/not-a-real-token
+    pass  the document response is 404, saw 404
+    pass  the page keeps the dark shell, body background lab(4.76673 -0.414066 -6.87106)
+    pass  the heading is the designed one: Nothing here for this link
+    pass  the framework's default 404 text is not on the page
+    pass  nothing on the page says whether the record exists for anyone else
+    shot  docs/screenshots/live/27-intake-unknown-token.png
+
+ROW 17  a route that does not exist at all
+    note  HTTP 404 for /no-such-page
+    pass  the document response is 404, saw 404
+    pass  the page keeps the dark shell, body background lab(4.76673 -0.414066 -6.87106)
+    pass  the heading is the designed one: Nothing here for this organisation
+    pass  the framework's default 404 text is not on the page
+    pass  nothing on the page says whether the record exists for anyone else
+    pass  there is a way back, a link to /
+    shot  docs/screenshots/live/46-unknown-route.png
+
+RESULT: all checks passed
+```
+

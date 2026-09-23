@@ -28,7 +28,8 @@
     "verify:workflow": "node scripts/verify-workflow.mjs",
     "final": "node scripts/final-run.mjs",
     "protection:status": "node scripts/protection.mjs --status",
-    "protection:off": "node scripts/protection.mjs"
+    "protection:off": "node scripts/protection.mjs",
+    "verify:live:notfound": "node scripts/verify-live-notfound.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

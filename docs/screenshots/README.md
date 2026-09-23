@@ -20,7 +20,7 @@ The application itself is the production build, `next build` plus
 
 The deployed URL has its own set. `npm run verify:live` drives
 https://fieldstone-portal.vercel.app in a real Chrome window, one browser
-context and one tab per requirement, and writes 45 screenshots into
+context and one tab per requirement, and writes 46 screenshots into
 [live](live) with a transcript in [live-run.md](live-run.md). It ran twice in
 a row with no failures on 23 September 2026.
 
@@ -100,7 +100,8 @@ deliberately pushes that tenant past one page.
 - `borrowers-run.md`
 - `scenarios-run.md`
 - `workflow-run.md`
-- `live-run.md`, written by `npm run verify:live`
+- `live-run.md`, written by `npm run verify:live`, with the not found re-run
+  from `npm run verify:live:notfound` appended
 
 Raw output from the checks that produce no image, including the secret sweep,
 the upload refusals, the privilege defect, the scale run and the whole

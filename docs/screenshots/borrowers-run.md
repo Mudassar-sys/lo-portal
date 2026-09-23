@@ -35,7 +35,7 @@
   pass  the tenant now holds 21 borrowers, saw 21
 
 6. loading state
-  pass  the skeleton from loading.tsx is on screen, 7 placeholders
+  pass  the skeleton from loading.tsx is on screen, 5 placeholders
         docs/screenshots/15-borrowers-loading-desktop.png
 7. cross tenant: a different organisation sees none of this
   pass  the second organisation sees its own 14 borrowers, saw 14

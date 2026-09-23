@@ -798,6 +798,21 @@ const oneRun = async (runNumber) => {
       );
       await shot(page, "portal-routes");
     });
+
+    // -- 17, the dead end for a route that matches nothing ---------------
+    await requirement([17], "a route that does not exist at all", async (page) => {
+      await signIn(page, SEAT_MANAGER);
+      const response = await page.goto(`${ALIAS}/no-such-page`, {
+        waitUntil: "domcontentloaded",
+        timeout: 60000,
+      });
+      await page.waitForLoadState("networkidle").catch(() => {});
+      check(response?.status() === 404, `an unmatched URL answers 404, saw ${response?.status()}`);
+      const body = await page.locator("body").innerText();
+      check(/Nothing here/i.test(body), "it is the designed dead end, not the framework default");
+      check(!/This page could not be found/i.test(body), "the framework default text is not on the page");
+      await shot(page, "unknown-route");
+    });
   } finally {
     if (browser) await browser.close();
   }
