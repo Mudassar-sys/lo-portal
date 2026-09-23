@@ -1,0 +1,46 @@
+# Rendered documents on the host
+
+repository    https://github.com/<redacted-term>-sys/lo-portal
+started       2026-09-23T06:56:06.582Z
+browser       Chrome, channel "chrome", headless false
+
+README.md
+    note  expanded 1 collapsed section(s)
+    note  1 rich block(s), 1 drawn in the viewer
+    pass  no rich block failed to render, 0 broken
+    pass  every rich block drew a diagram, 1 of 1
+    pass  the architecture image is in the document
+    pass  the image loaded at its own size, 1551x645
+    shot  docs/screenshots/readme-architecture-github.png
+
+VERIFICATION.md
+    note  expanded 0 collapsed section(s)
+    note  0 rich block(s), 0 drawn in the viewer
+    pass  no rich block failed to render, 0 broken
+    pass  every rich block drew a diagram, 0 of 0
+
+docs/REQUIREMENTS-TRACE.md
+    note  expanded 0 collapsed section(s)
+    note  0 rich block(s), 0 drawn in the viewer
+    pass  no rich block failed to render, 0 broken
+    pass  every rich block drew a diagram, 0 of 0
+
+docs/DECISIONS.md
+    note  expanded 0 collapsed section(s)
+    note  0 rich block(s), 0 drawn in the viewer
+    pass  no rich block failed to render, 0 broken
+    pass  every rich block drew a diagram, 0 of 0
+
+RESEARCH.md
+    note  expanded 0 collapsed section(s)
+    note  0 rich block(s), 0 drawn in the viewer
+    pass  no rich block failed to render, 0 broken
+    pass  every rich block drew a diagram, 0 of 0
+
+docs/screenshots/live-run.md
+    note  expanded 0 collapsed section(s)
+    note  0 rich block(s), 0 drawn in the viewer
+    pass  no rich block failed to render, 0 broken
+    pass  every rich block drew a diagram, 0 of 0
+
+RESULT: all checks passed

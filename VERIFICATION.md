@@ -36,6 +36,8 @@ npm run guard:selftest     # proves the guard can still fail
 
 npm run final              # all of the above in order, into one evidence file
 npm run verify:live        # every requirement against the deployed alias, headed Chrome, twice
+npm run verify:github      # the rendered documents on the host, headed Chrome
+npm run diagram            # re-render docs/architecture.svg from its source
 ```
 
 A requirement by requirement trace against the job posting, one row per
