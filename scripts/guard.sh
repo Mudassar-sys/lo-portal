@@ -17,6 +17,7 @@ cd "$(git rev-parse --show-toplevel)"
 # must not appear in anything this repository produces, tracked or built.
 NAME_TERMS=(
   "re""idy" "san""more" "bo""ris" "san""chez" "mc""intyre" "hir""sch" "up""work"
+  "mud""assar"
 )
 
 # AI tooling. These are banned in content this repository authors. They are not
@@ -50,15 +51,31 @@ for t in "${TERMS[@]}"; do
   fi
 done
 
-# 2. Staged content, which is what a commit would actually record.
-for t in "${TERMS[@]}"; do
-  hits=$(git diff --cached -U0 -i -G"$t" --name-only 2>/dev/null || true)
-  if [ -n "$hits" ]; then
-    echo "GUARD FAIL (staged): term '$t' in:"
-    echo "$hits"
-    fail=1
-  fi
-done
+# 2. Staged content, which is what a commit would actually record. Only ADDED
+#    lines count. The first version used git diff -G, which matches a line
+#    whose occurrences changed in either direction, so it refused the very
+#    commit that REMOVED a banned term: the term was gone from the tree and
+#    the guard still failed, pointing at the deletion. Matching is done in
+#    the shell rather than by spawning a grep per line.
+staged_file=""
+while IFS= read -r line; do
+  case "$line" in
+    "+++ b/"*) staged_file="${line#+++ b/}"; continue ;;
+    "+++"*)    staged_file=""; continue ;;
+    "+"*)      ;;
+    *)         continue ;;
+  esac
+  lower="${line,,}"
+  for t in "${TERMS[@]}"; do
+    case "$lower" in
+      *"$t"*)
+        echo "GUARD FAIL (staged): term '$t' added in ${staged_file:-a staged file}"
+        echo "  ${line:0:120}"
+        fail=1
+        ;;
+    esac
+  done
+done < <(git diff --cached -U0)
 
 # 3. Em dash and en dash are banned in every file of the deliverable.
 # The characters are built from UTF-8 bytes rather than written literally, so

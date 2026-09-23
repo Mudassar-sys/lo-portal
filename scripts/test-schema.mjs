@@ -50,7 +50,23 @@ async function connect() {
     // chain, which is what the platform's own connection snippets do.
     const ssl = /sslmode=/.test(databaseUrl) ? undefined : { rejectUnauthorized: false };
     const client = new pg.Client({ connectionString: databaseUrl, ssl });
-    await client.connect();
+
+    // The host name behind the pooler does not always resolve first time on
+    // every network, and a lookup that failed is not a statement about the
+    // schema. Three attempts, widening, and every retry is printed so a green
+    // run never hides one. Anything that is not a lookup or a refused
+    // connection is raised immediately.
+    const TRANSIENT = /EAI_AGAIN|ENOTFOUND|ETIMEDOUT|ECONNRESET|ECONNREFUSED|getaddrinfo/i;
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        await client.connect();
+        break;
+      } catch (error) {
+        if (attempt === 3 || !TRANSIENT.test(String(error))) throw error;
+        console.log(`  connecting: ${String(error).split("\n")[0]}, retry ${attempt} of 2`);
+        await new Promise((r) => setTimeout(r, attempt * 5000));
+      }
+    }
     const { rows } = await client.query("select version() as v");
     return {
       label: "the project database over DATABASE_URL",

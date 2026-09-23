@@ -14,6 +14,13 @@ modules, marked as stubs at the top of their files, and they reach no network.
 
 - Portal: https://fieldstone-portal.vercel.app
 
+That URL is open: an anonymous request with no cookies returns the portal's
+own sign in page and every security header, recorded in
+[docs/evidence/live-headers.txt](docs/evidence/live-headers.txt). Every
+requirement was then verified against it in a real Chrome window, twice, and
+the transcript with a screenshot per requirement is in
+[docs/screenshots/live-run.md](docs/screenshots/live-run.md).
+
 Sign in as two different tenants and compare what each can see. The password is
 the same for both and is shared privately; it is not in this repository and no
 script prints it.
@@ -210,3 +217,9 @@ npm run test:schema -- --local
   upload refusals, the privilege defect and the scale run.
 - [docs/screenshots](docs/screenshots): every screen at desktop and 390 pixels,
   with what each one proves.
+- [docs/screenshots/live-run.md](docs/screenshots/live-run.md): every
+  requirement driven against the deployed URL in a real Chrome window, twice in
+  a row with no failures, with its own screenshot in
+  [docs/screenshots/live](docs/screenshots/live).
+- [docs/demo](docs/demo): a 40 second walkthrough, recorded against the
+  deployed URL in one unedited session.

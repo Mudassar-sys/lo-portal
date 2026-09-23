@@ -30,12 +30,12 @@ overview are the seeded counts for that tenant.
 
 2. the seat is held by this device
   pass  exactly one seat row reads 'this device'
-        seat active_session_id b4733320-6cd9-461e-8dcb-138d41d51c47
+        seat active_session_id 70535dfc-6d41-4188-852b-e60237dfc8ba
         docs/screenshots/02-sessions-seat-held-by-this-device.png
 
 3. a second device takes the seat over
   pass  the seat moved to the second device's session
-        seat active_session_id ced2716b-5571-41ed-a2ef-15a01439378e
+        seat active_session_id 38b99182-88cb-47f8-95bd-b37814f9b807
         docs/screenshots/03-second-device-took-the-seat.png
   pass  the first device no longer reads 'this device'
   pass  the first device now sees the seat as 'in use elsewhere'
@@ -44,7 +44,7 @@ overview are the seeded counts for that tenant.
 4. sign out other devices
   pass  the action reports back on screen
   pass  the seat returned to the device that pressed the button
-        seat active_session_id b4733320-6cd9-461e-8dcb-138d41d51c47
+        seat active_session_id 70535dfc-6d41-4188-852b-e60237dfc8ba
         docs/screenshots/05-sign-out-other-devices.png
 
 5. the other device is genuinely revoked

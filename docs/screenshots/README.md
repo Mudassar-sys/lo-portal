@@ -16,11 +16,13 @@ Not the local emulator, and not mock data. The counts visible on screen are
 the seeded counts for that tenant.
 
 The application itself is the production build, `next build` plus
-`next start`, which is the same artefact that is deployed. The deployed URL
-sits behind Vercel Deployment Protection at the time of writing, so it answers
-an anonymous request with the host's own login page. `npm run verify:live`
-re-runs all of this against the deployed alias in one command, and refuses to
-write a transcript until that URL actually serves the portal.
+`next start`, which is the same artefact that is deployed.
+
+The deployed URL has its own set. `npm run verify:live` drives
+https://fieldstone-portal.vercel.app in a real Chrome window, one browser
+context and one tab per requirement, and writes 45 screenshots into
+[live](live) with a transcript in [live-run.md](live-run.md). It ran twice in
+a row with no failures on 23 September 2026.
 
 The list page shows **25 rows per page** (`PAGE_SIZE` in `lib/borrowers.ts`).
 Every list screenshot is taken at the same clean seed state, 15 borrowers for

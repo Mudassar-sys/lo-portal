@@ -26,7 +26,9 @@
     "record": "node scripts/record-walkthrough.mjs",
     "verify:live": "node scripts/verify-live.mjs",
     "verify:workflow": "node scripts/verify-workflow.mjs",
-    "final": "node scripts/final-run.mjs"
+    "final": "node scripts/final-run.mjs",
+    "protection:status": "node scripts/protection.mjs --status",
+    "protection:off": "node scripts/protection.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

@@ -41,6 +41,15 @@ const say = (line = "") => {
 const TRANSIENT = /EAI_AGAIN|ENOTFOUND|ETIMEDOUT|ECONNRESET|socket hang up|getaddrinfo/i;
 const NEWLINE = /\r?\n/;
 
+// 0xC0000142, STATUS_DLL_INIT_FAILED: Windows could not start the process at
+// all, which it does under memory pressure. It is not a result from the tool,
+// it is the absence of one, so it is treated as transient only when the step
+// also produced no output whatsoever. A compiler that actually rejected the
+// code prints why.
+const PROCESS_DID_NOT_START = 3221225794;
+const didNotStart = (result) =>
+  result.status === PROCESS_DID_NOT_START && result.out.trim() === "";
+
 const once = (command, args) => {
   const result = spawnSync(command, args, {
     encoding: "utf8",
@@ -62,9 +71,13 @@ const run = (label, command, args) => {
   say("=".repeat(72));
 
   let result = once(command, args);
-  if (!result.ok && TRANSIENT.test(result.out)) {
+  if (!result.ok && (TRANSIENT.test(result.out) || didNotStart(result))) {
     for (const line of result.out.split(NEWLINE)) say(line);
-    say(`--- ${label}: failed on a network error, retrying once ---`);
+    say(
+      didNotStart(result)
+        ? `--- ${label}: the process could not be started, retrying once ---`
+        : `--- ${label}: failed on a network error, retrying once ---`,
+    );
     result = once(command, args);
   }
 

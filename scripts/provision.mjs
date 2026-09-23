@@ -51,14 +51,21 @@ if (missing.length) {
 const HOOK_URI = "pg-functions://postgres/public/custom_access_token_hook";
 
 // Where the deployed portal lives, and the shapes Auth will accept a redirect
-// to. The globstar is the documented way to cover a host's preview URLs; the
-// production entry is exact, which is what the documentation recommends for
-// production. Localhost stays on the list so the same project still works for
-// local development.
+// to. The production entry is exact, which is what the documentation
+// recommends for production, and localhost stays on the list so the same
+// project still works for local development.
+//
+// Preview deployments are covered only if PREVIEW_URL_PATTERN names them.
+// It is deliberately not hardcoded and not in .env.example: the pattern
+// contains the hosting account's own name, which this repository does not
+// carry, and a glob wide enough to avoid naming the account would accept a
+// redirect to any account's deployment of a project with the same name. The
+// portal signs in with a password and uses no redirect flow at all, so an
+// empty preview entry costs nothing here.
 const SITE_URL = process.env.SITE_URL ?? "https://fieldstone-portal.vercel.app";
 const REDIRECT_URLS = [
   `${SITE_URL}/**`,
-  "https://lo-portal-*-mudassar-sys-projects.vercel.app/**",
+  ...(process.env.PREVIEW_URL_PATTERN ? [process.env.PREVIEW_URL_PATTERN] : []),
   "http://localhost:3000/**",
 ];
 const JWT_EXP = 600;

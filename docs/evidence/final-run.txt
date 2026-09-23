@@ -1,6 +1,6 @@
 Final verification run
-Attempt 5
-started 2026-09-22T19:02:26.098Z
+Attempt 9
+started 2026-09-23T04:44:28.364Z
 browser suites against http://localhost:3100
 
 Order is fixed: secrets, guards, static checks, build, database, then the
@@ -15,17 +15,17 @@ $ npm run sweep
 > node scripts/secret-sweep.mjs
 
 Secret sweep of the full git history.
-captured 2026-09-22T19:02:27.951Z
+captured 2026-09-23T04:44:29.235Z
 
 Commands:
   git log --all -p --no-color        # every commit on every ref, with content
   git rev-list --all --count         # how many commits that is
 
-Scanned 16 commits and 110 tracked files.
+Scanned 17 commits and 111 tracked files.
 
 Shape patterns:
   a secret key                           mentions    5   value shaped 0
-  a personal access token                mentions    2   value shaped 0
+  a personal access token                mentions    3   value shaped 0
   a postgres connection string           mentions    0   value shaped 0
   a postgres connection string, short form mentions    0   value shaped 0
   a JSON web token                       mentions    0   value shaped 0
@@ -90,18 +90,18 @@ $ npm run build
 
 ▲ Next.js 16.3.5 (Turbopack)
 - Environments: .env.local
-✓ Running next.config.ts took 74ms
+✓ Running next.config.ts took 31ms
 
   Creating an optimized production build ...
-✓ Compiled successfully in 2.9s
+✓ Compiled successfully in 1601ms
   Running TypeScript ...
-  Finished TypeScript in 4.0s ...
+  Finished TypeScript in 1356ms ...
   Collecting page data using 7 workers ...
   Generating static pages using 7 workers (0/15) ...
   Generating static pages using 7 workers (3/15) 
   Generating static pages using 7 workers (7/15) 
   Generating static pages using 7 workers (11/15) 
-✓ Generating static pages using 7 workers (15/15) in 879ms
+✓ Generating static pages using 7 workers (15/15) in 287ms
   Finalizing page optimization ...
 
 Route (app)
@@ -147,14 +147,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1072ms)
+ok    schema           supabase/schema.sql  (809ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (475ms)
+ok    isolation tests  supabase/tests/isolation.sql  (292ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -205,7 +205,7 @@ step 1  schema
 
 step 2  auth config: access token hook and token lifetime
   PATCH /v1/projects/<redacted>/config/auth sent
-  site URL and 3 redirect patterns included
+  site URL and 2 redirect patterns included
 
 step 3  storage bucket
   borrower-docs already existed, settings reapplied
@@ -224,8 +224,8 @@ step 4  read back and assert
           expected "https://fieldstone-portal.vercel.app"
           observed "https://fieldstone-portal.vercel.app"
   pass  uri_allow_list
-          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
-          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**"]
   pass  bucket id
           expected "borrower-docs"
           observed "borrower-docs"
@@ -257,7 +257,7 @@ step 1  schema
 
 step 2  auth config: access token hook and token lifetime
   PATCH /v1/projects/<redacted>/config/auth sent
-  site URL and 3 redirect patterns included
+  site URL and 2 redirect patterns included
 
 step 3  storage bucket
   borrower-docs already existed, settings reapplied
@@ -276,8 +276,8 @@ step 4  read back and assert
           expected "https://fieldstone-portal.vercel.app"
           observed "https://fieldstone-portal.vercel.app"
   pass  uri_allow_list
-          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
-          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**"]
   pass  bucket id
           expected "borrower-docs"
           observed "borrower-docs"
@@ -305,7 +305,7 @@ $ npm run verify:uploads
 > node scripts/verify-uploads.mjs
 
 Upload negative tests, run as a signed in loan officer seat.
-captured 2026-09-22T19:04:37.295Z
+captured 2026-09-23T04:45:27.883Z
 
 1. a file over the 10 MB bucket limit
         error: The object exceeded the maximum allowed size
@@ -376,12 +376,12 @@ $ npm run verify:auth
 
 2. the seat is held by this device
   pass  exactly one seat row reads 'this device'
-        seat active_session_id 8e4ae501-f1e5-4bc6-93ee-5d296683dea4
+        seat active_session_id 3e9b1f5f-7f6a-4636-8587-1c63153740f1
         docs/screenshots/02-sessions-seat-held-by-this-device.png
 
 3. a second device takes the seat over
   pass  the seat moved to the second device's session
-        seat active_session_id 2150a012-992c-4fb0-bd14-3307418a39dd
+        seat active_session_id 2f4d9e4f-aa22-4b12-bf7b-7668fa4afe37
         docs/screenshots/03-second-device-took-the-seat.png
   pass  the first device no longer reads 'this device'
   pass  the first device now sees the seat as 'in use elsewhere'
@@ -390,7 +390,7 @@ $ npm run verify:auth
 4. sign out other devices
   pass  the action reports back on screen
   pass  the seat returned to the device that pressed the button
-        seat active_session_id 8e4ae501-f1e5-4bc6-93ee-5d296683dea4
+        seat active_session_id 3e9b1f5f-7f6a-4636-8587-1c63153740f1
         docs/screenshots/05-sign-out-other-devices.png
 
 5. the other device is genuinely revoked
@@ -424,14 +424,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1396ms)
+ok    schema           supabase/schema.sql  (802ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (441ms)
+ok    isolation tests  supabase/tests/isolation.sql  (290ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -509,12 +509,12 @@ $ npm run verify:auth
 
 2. the seat is held by this device
   pass  exactly one seat row reads 'this device'
-        seat active_session_id b4733320-6cd9-461e-8dcb-138d41d51c47
+        seat active_session_id 70535dfc-6d41-4188-852b-e60237dfc8ba
         docs/screenshots/02-sessions-seat-held-by-this-device.png
 
 3. a second device takes the seat over
   pass  the seat moved to the second device's session
-        seat active_session_id ced2716b-5571-41ed-a2ef-15a01439378e
+        seat active_session_id 38b99182-88cb-47f8-95bd-b37814f9b807
         docs/screenshots/03-second-device-took-the-seat.png
   pass  the first device no longer reads 'this device'
   pass  the first device now sees the seat as 'in use elsewhere'
@@ -523,7 +523,7 @@ $ npm run verify:auth
 4. sign out other devices
   pass  the action reports back on screen
   pass  the seat returned to the device that pressed the button
-        seat active_session_id b4733320-6cd9-461e-8dcb-138d41d51c47
+        seat active_session_id 70535dfc-6d41-4188-852b-e60237dfc8ba
         docs/screenshots/05-sign-out-other-devices.png
 
 5. the other device is genuinely revoked
@@ -551,20 +551,39 @@ $ npm run test:schema
 > lo-portal@0.1.0 test:schema
 > node scripts/test-schema.mjs
 
+  connecting: Error: getaddrinfo EAI_AGAIN aws-0-us-east-1.pooler.supabase.com, retry 1 of 2
+C:\Users\ali\Desktop\lo-portal\node_modules\pg\lib\client.js:159
+      const err = new Error('Client has already been connected. You cannot reuse a client.')
+                  ^
+
+Error: Client has already been connected. You cannot reuse a client.
+    at Client._connect (C:\Users\ali\Desktop\lo-portal\node_modules\pg\lib\client.js:159:19)
+    at C:\Users\ali\Desktop\lo-portal\node_modules\pg\lib\client.js:239:12
+    at new Promise (<anonymous>)
+    at Client.connect (C:\Users\ali\Desktop\lo-portal\node_modules\pg\lib\client.js:238:12)
+    at connect (file:///C:/Users/ali/Desktop/lo-portal/scripts/test-schema.mjs:62:22)
+    at async file:///C:/Users/ali/Desktop/lo-portal/scripts/test-schema.mjs:94:12
+
+Node.js v25.6.1
+--- reset seed: failed on a network error, retrying once ---
+
+> lo-portal@0.1.0 test:schema
+> node scripts/test-schema.mjs
+
 mode: real, against the project database over DATABASE_URL
 PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-bit
 
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1445ms)
+ok    schema           supabase/schema.sql  (799ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (401ms)
+ok    isolation tests  supabase/tests/isolation.sql  (294ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -668,7 +687,7 @@ $ npm run verify:borrowers
   pass  the tenant now holds 21 borrowers, saw 21
 
 6. loading state
-  pass  the skeleton from loading.tsx is on screen, 1 placeholders
+  pass  the skeleton from loading.tsx is on screen, 7 placeholders
         docs/screenshots/15-borrowers-loading-desktop.png
 7. cross tenant: a different organisation sees none of this
   pass  the second organisation sees its own 14 borrowers, saw 14
@@ -714,14 +733,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1055ms)
+ok    schema           supabase/schema.sql  (785ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (355ms)
+ok    isolation tests  supabase/tests/isolation.sql  (296ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -825,7 +844,7 @@ $ npm run verify:borrowers
   pass  the tenant now holds 21 borrowers, saw 21
 
 6. loading state
-  pass  the skeleton from loading.tsx is on screen, 5 placeholders
+  pass  the skeleton from loading.tsx is on screen, 7 placeholders
         docs/screenshots/15-borrowers-loading-desktop.png
 7. cross tenant: a different organisation sees none of this
   pass  the second organisation sees its own 14 borrowers, saw 14
@@ -871,14 +890,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (895ms)
+ok    schema           supabase/schema.sql  (1052ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (282ms)
+ok    isolation tests  supabase/tests/isolation.sql  (328ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -1005,14 +1024,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1095ms)
+ok    schema           supabase/schema.sql  (813ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (306ms)
+ok    isolation tests  supabase/tests/isolation.sql  (327ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -1139,14 +1158,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1338ms)
+ok    schema           supabase/schema.sql  (852ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (405ms)
+ok    isolation tests  supabase/tests/isolation.sql  (571ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -1284,14 +1303,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1026ms)
+ok    schema           supabase/schema.sql  (816ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (412ms)
+ok    isolation tests  supabase/tests/isolation.sql  (281ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -1429,14 +1448,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1436ms)
+ok    schema           supabase/schema.sql  (838ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (283ms)
+ok    isolation tests  supabase/tests/isolation.sql  (295ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -1486,26 +1505,28 @@ Generated 5000 rows at <temp>\borrowers-5000.csv
 Measured against http://localhost:3100
 
 1. importing 5000 rows through the browser
-        parsed and previewed in 5.1s
-        committed in 13.8s, 18.8s end to end
+        parsed and previewed in 2.9s
+        committed in 8.5s, 11.5s end to end
   pass  all 5000 rows were inserted, the summary says 5000
-  pass  the plan's target is under 60 seconds, this run took 18.8s
+  pass  the plan's target is under 60 seconds, this run took 11.5s
 
 2. the list at that size
         5015 borrowers, showing 1 to 25 held, 25 rows on the page
-  pass  the first page rendered in 0.91s, target is under 1s
+  pass  the first page rendered in 0.33s, target is under 1s
 
 3. the query plan
         explain (analyze) as the authenticated role, under the policies:
-          Limit  (cost=0.19..18.07 rows=16 width=80) (actual time=0.070..0.095 rows=25 loops=1)
-            Buffers: shared hit=8
+          Limit  (cost=0.31..2.50 rows=25 width=35) (actual time=0.047..0.069 rows=25 loops=1)
+            Buffers: shared hit=6
             InitPlan 1
-              ->  Result  (cost=0.00..0.03 rows=1 width=32) (actual time=0.015..0.016 rows=1 loops=1)
-            ->  Index Scan using borrowers_org_name_idx on borrowers  (cost=0.16..18.04 rows=16 width=80) (actual time=0.069..0.091 rows=25 loops=1)
+              ->  Result  (cost=0.00..0.03 rows=1 width=32) (actual time=0.022..0.023 rows=1 loops=1)
+            ->  Index Scan using borrowers_org_name_idx on borrowers  (cost=0.28..117.95 rows=1346 width=35) (actual time=0.046..0.065 rows=25 loops=1)
                   Index Cond: (org_id = ((InitPlan 1).col1)::uuid)
-                  Buffers: shared hit=8
-          Planning Time: 0.443 ms
-          Execution Time: 0.207 ms
+                  Buffers: shared hit=6
+          Planning:
+            Buffers: shared hit=50
+          Planning Time: 0.560 ms
+          Execution Time: 0.104 ms
   pass  the plan uses an index rather than a sequential scan
 
 all checks passed
@@ -1528,14 +1549,14 @@ PostgreSQL 17.6 on aarch64-unknown-linux-gnu, compiled by gcc (GCC) 15.2.0, 64-b
 note: the schema file drops and recreates the portal tables.
       use --tests-only to run the tests against what is there.
 
-ok    schema           supabase/schema.sql  (1235ms)
+ok    schema           supabase/schema.sql  (869ms)
 
 Seeded tenants:
   Bayou City Lending Co          premium=false  seats=3 borrowers=14  scenarios=5   results=12  submissions=4   ledger=3   audit=1
   Harborline Mortgage Group      premium=true   seats=3 borrowers=15  scenarios=10  results=26  submissions=6   ledger=8   audit=4
   Red Oak Residential Finance    premium=true   seats=3 borrowers=11  scenarios=3   results=6   submissions=2   ledger=3   audit=2
 
-ok    isolation tests  supabase/tests/isolation.sql  (296ms)
+ok    isolation tests  supabase/tests/isolation.sql  (317ms)
 
   pass  every seat sees its own tenant in full           9 seats checked across 3 organisations
   pass  cross tenant read returns zero rows              10 tables queried by foreign org_id, per seat
@@ -1642,4 +1663,4 @@ SUMMARY
 
 37 of 37 steps ok
 RESULT: the whole sequence passed.
-finished 2026-09-22T19:15:08.441Z
+finished 2026-09-23T04:52:28.530Z

@@ -1,5 +1,5 @@
 Provisioning of the project, run by scripts/provision.mjs.
-captured 2026-09-22T19:04:33.788Z
+captured 2026-09-23T04:45:25.915Z
 
 The project reference, the project URL, the database URL, the personal
 access token and the secret key are replaced with <redacted> before this
@@ -11,7 +11,7 @@ step 1  schema
 
 step 2  auth config: access token hook and token lifetime
   PATCH /v1/projects/<redacted>/config/auth sent
-  site URL and 3 redirect patterns included
+  site URL and 2 redirect patterns included
 
 step 3  storage bucket
   borrower-docs already existed, settings reapplied
@@ -30,8 +30,8 @@ step 4  read back and assert
           expected "https://fieldstone-portal.vercel.app"
           observed "https://fieldstone-portal.vercel.app"
   pass  uri_allow_list
-          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
-          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**","https://lo-portal-*-mudassar-sys-projects.vercel.app/**"]
+          expected ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**"]
+          observed ["http://localhost:3000/**","https://fieldstone-portal.vercel.app/**"]
   pass  bucket id
           expected "borrower-docs"
           observed "borrower-docs"

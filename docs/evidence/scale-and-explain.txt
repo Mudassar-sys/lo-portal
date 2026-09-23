@@ -2,26 +2,28 @@ Generated 5000 rows at <temp>\borrowers-5000.csv
 Measured against http://localhost:3100
 
 1. importing 5000 rows through the browser
-        parsed and previewed in 5.1s
-        committed in 13.8s, 18.8s end to end
+        parsed and previewed in 2.9s
+        committed in 8.5s, 11.5s end to end
   pass  all 5000 rows were inserted, the summary says 5000
-  pass  the plan's target is under 60 seconds, this run took 18.8s
+  pass  the plan's target is under 60 seconds, this run took 11.5s
 
 2. the list at that size
         5015 borrowers, showing 1 to 25 held, 25 rows on the page
-  pass  the first page rendered in 0.91s, target is under 1s
+  pass  the first page rendered in 0.33s, target is under 1s
 
 3. the query plan
         explain (analyze) as the authenticated role, under the policies:
-          Limit  (cost=0.19..18.07 rows=16 width=80) (actual time=0.070..0.095 rows=25 loops=1)
-            Buffers: shared hit=8
+          Limit  (cost=0.31..2.50 rows=25 width=35) (actual time=0.047..0.069 rows=25 loops=1)
+            Buffers: shared hit=6
             InitPlan 1
-              ->  Result  (cost=0.00..0.03 rows=1 width=32) (actual time=0.015..0.016 rows=1 loops=1)
-            ->  Index Scan using borrowers_org_name_idx on borrowers  (cost=0.16..18.04 rows=16 width=80) (actual time=0.069..0.091 rows=25 loops=1)
+              ->  Result  (cost=0.00..0.03 rows=1 width=32) (actual time=0.022..0.023 rows=1 loops=1)
+            ->  Index Scan using borrowers_org_name_idx on borrowers  (cost=0.28..117.95 rows=1346 width=35) (actual time=0.046..0.065 rows=25 loops=1)
                   Index Cond: (org_id = ((InitPlan 1).col1)::uuid)
-                  Buffers: shared hit=8
-          Planning Time: 0.443 ms
-          Execution Time: 0.207 ms
+                  Buffers: shared hit=6
+          Planning:
+            Buffers: shared hit=50
+          Planning Time: 0.560 ms
+          Execution Time: 0.104 ms
   pass  the plan uses an index rather than a sequential scan
 
 all checks passed

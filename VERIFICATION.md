@@ -7,7 +7,17 @@ file of real output. Nothing here says "verified" on its own authority.
 Unless a row says otherwise, everything was run against the real project on
 its own PostgreSQL 17.6, not against a local emulator.
 
-Dates are 22 September 2026.
+The deployed application is https://fieldstone-portal.vercel.app. It is open:
+an anonymous request returns the portal's own sign in page, evidenced in
+`docs/evidence/live-headers.txt`.
+
+Dates are 22 September 2026, except the live run, which is 23 September 2026.
+
+Eleven of the fourteen were re-checked against the deployed URL itself on
+23 September 2026 by `npm run verify:live`, in a real Chrome window, twice in
+a row with no failures. The three that were not are the ones a browser cannot
+answer from the deployed URL: the secret sweep over git history, the 5,000 row
+timing, and the build itself.
 
 ## How to re-run all of it
 
@@ -25,7 +35,7 @@ npm run guard              # names, paths, env files, build output
 npm run guard:selftest     # proves the guard can still fail
 
 npm run final              # all of the above in order, into one evidence file
-npm run verify:live        # all the browser suites against the deployed alias
+npm run verify:live        # every requirement against the deployed alias, headed Chrome, twice
 ```
 
 A requirement by requirement trace against the job posting, one row per
@@ -36,19 +46,19 @@ sentence the client wrote, is in
 
 | # | Claim | How it is proved | Evidence |
 | --- | --- | --- | --- |
-| 1 | Cross tenant read returns nothing. As a seat in one organisation, ask for another's borrowers, documents, scenarios, results, submissions, ledger, audit, intake links, seats and organisations by id. | `npm run test:schema`, checks "every seat sees its own tenant in full" and "cross tenant read returns zero rows". Ten tables queried by foreign org_id, for each of the nine seats. | `docs/evidence/schema-tests-real.txt` |
-| 2 | Cross tenant write is refused. Insert a borrower carrying another organisation's org_id. | `npm run test:schema`, check "cross tenant insert is rejected". Asserts SQLSTATE 42501 specifically, not merely an error. | `docs/evidence/schema-tests-real.txt` |
-| 3 | A row cannot be moved between tenants. Update a borrower's org_id to another organisation. | `npm run test:schema`, check "changing org_id on a row is rejected", SQLSTATE 42501 from WITH CHECK. | `docs/evidence/schema-tests-real.txt` |
-| 4 | Storage is bounded the same way. Write into, and read from, another organisation's folder. | `npm run verify:uploads`, checks 3 and 4, run as a signed in seat through the API with the browser bypassed entirely. Refusal text: "new row violates row-level security policy"; listing returns 0 entries. Also `npm run verify:borrowers` proves a signed link resolves HTTP 200 for the owning tenant. | `docs/evidence/upload-negative-tests.txt`, `docs/screenshots/borrowers-run.md` |
-| 5 | Role boundaries hold, including against an administrator. A loan officer cannot delete; an org_admin cannot grant itself the premium tier or the demo admin flag. | `npm run test:schema`, checks "loan_officer delete is refused" (0 rows affected and the row survives, because USING does not raise), "org_admin cannot grant itself the premium tier" and "org_admin cannot make itself demo admin" (42501, outside the column grant). | `docs/evidence/schema-tests-real.txt` |
-| 6 | One live session per named seat, and a fresh sign in takes the seat over rather than locking the person out. | `npm run test:schema` checks "one live session per named seat" and "a fresh sign in takes the seat over". Then in a browser, `npm run verify:auth`: two isolated contexts, the seat moves, and the displaced device cannot get a new token, "Invalid Refresh Token: Refresh Token Not Found". | `docs/evidence/schema-tests-real.txt`, `docs/screenshots/README.md`, screenshots 02 to 05 |
-| 7 | The public intake writes only into the organisation whose token was used, and an unauthenticated caller has no table access at all. | `npm run test:schema`, checks "anon has no table access", "public intake writes only into the token tenant", "unknown intake token is refused", "intake branding is readable only for a live token". Then in a browser with no session at all, `npm run verify:workflow`: the page carries the lender's own name and accent, a submission lands in that tenant and the other is untouched at 14, the row is marked `intake`, and an unknown token renders no tenant name. | `docs/evidence/schema-tests-real.txt`, `docs/screenshots/workflow-run.md`, screenshots 50, 51, 61 |
-| 8 | A 5,000 row CSV imports in under 60 seconds, with a per row error report. | `npm run verify:scale` against a production build: parsed and previewed in 3.5s, committed in 11.2s, **14.6s end to end**, all 5,000 inserted. The per row error list and its download are proved separately by `npm run verify:borrowers` on the sample file: 6 ready, 1 already held, 1 repeated in file, 4 lines with errors. | `docs/evidence/scale-and-explain.txt`, screenshot 13 |
-| 9 | Every action leaves an audit row, visible only to the acting organisation, and the application cannot write one. | `npm run test:schema`, check "audit_log rejects application writes" (no insert grant, 42501) and "audit_log has no write grant for users". The acting seat is recorded: `npm run verify:scenarios` asserts an upload writes `documents.insert` with a seat present. | `docs/evidence/schema-tests-real.txt`, `docs/screenshots/scenarios-run.md` |
+| 1 | Cross tenant read returns nothing. As a seat in one organisation, ask for another's borrowers, documents, scenarios, results, submissions, ledger, audit, intake links, seats and organisations by id. | `npm run test:schema`, checks "every seat sees its own tenant in full" and "cross tenant read returns zero rows". Ten tables queried by foreign org_id, for each of the nine seats. | `docs/evidence/schema-tests-real.txt`; re-checked live, shots 21 to 23 plus the isolation tests run against the live project by `npm run verify:live` |
+| 2 | Cross tenant write is refused. Insert a borrower carrying another organisation's org_id. | `npm run test:schema`, check "cross tenant insert is rejected". Asserts SQLSTATE 42501 specifically, not merely an error. | `docs/evidence/schema-tests-real.txt`; the isolation tests are re-run against the live project as step one of `npm run verify:live` |
+| 3 | A row cannot be moved between tenants. Update a borrower's org_id to another organisation. | `npm run test:schema`, check "changing org_id on a row is rejected", SQLSTATE 42501 from WITH CHECK. | `docs/evidence/schema-tests-real.txt`; the isolation tests are re-run against the live project as step one of `npm run verify:live` |
+| 4 | Storage is bounded the same way. Write into, and read from, another organisation's folder. | `npm run verify:uploads`, checks 3 and 4, run as a signed in seat through the API with the browser bypassed entirely. Refusal text: "new row violates row-level security policy"; listing returns 0 entries. Also `npm run verify:borrowers` proves a signed link resolves HTTP 200 for the owning tenant. | `docs/evidence/upload-negative-tests.txt`, `docs/screenshots/borrowers-run.md`; on the live URL, shot 13 shows the signed link resolving HTTP 200. The foreign folder refusals are API level and stay in `verify:uploads` |
+| 5 | Role boundaries hold, including against an administrator. A loan officer cannot delete; an org_admin cannot grant itself the premium tier or the demo admin flag. | `npm run test:schema`, checks "loan_officer delete is refused" (0 rows affected and the row survives, because USING does not raise), "org_admin cannot grant itself the premium tier" and "org_admin cannot make itself demo admin" (42501, outside the column grant). | `docs/evidence/schema-tests-real.txt`; live, shots 34, 37 and 38 |
+| 6 | One live session per named seat, and a fresh sign in takes the seat over rather than locking the person out. | `npm run test:schema` checks "one live session per named seat" and "a fresh sign in takes the seat over". Then in a browser, `npm run verify:auth`: two isolated contexts, the seat moves, and the displaced device cannot get a new token, "Invalid Refresh Token: Refresh Token Not Found". | `docs/evidence/schema-tests-real.txt`, `docs/screenshots/README.md`, screenshots 02 to 05; live, shots 03 to 06, including the displaced device refused a new token |
+| 7 | The public intake writes only into the organisation whose token was used, and an unauthenticated caller has no table access at all. | `npm run test:schema`, checks "anon has no table access", "public intake writes only into the token tenant", "unknown intake token is refused", "intake branding is readable only for a live token". Then in a browser with no session at all, `npm run verify:workflow`: the page carries the lender's own name and accent, a submission lands in that tenant and the other is untouched at 14, the row is marked `intake`, and an unknown token renders no tenant name. | `docs/evidence/schema-tests-real.txt`, `docs/screenshots/workflow-run.md`, screenshots 50, 51, 61; live, shots 25 to 27 and 44 |
+| 8 | A 5,000 row CSV imports in under 60 seconds, with a per row error report. | `npm run verify:scale` against a production build: parsed and previewed in 3.5s, committed in 11.2s, **14.6s end to end**, all 5,000 inserted. The per row error list and its download are proved separately by `npm run verify:borrowers` on the sample file: 6 ready, 1 already held, 1 repeated in file, 4 lines with errors. | `docs/evidence/scale-and-explain.txt`, screenshot 13; the sample file's preview, error list and summary were re-checked live, shots 28 and 29. The 5,000 row timing stays a production build measurement |
+| 9 | Every action leaves an audit row, visible only to the acting organisation, and the application cannot write one. | `npm run test:schema`, check "audit_log rejects application writes" (no insert grant, 42501) and "audit_log has no write grant for users". The acting seat is recorded: `npm run verify:scenarios` asserts an upload writes `documents.insert` with a seat present. | `docs/evidence/schema-tests-real.txt`, `docs/screenshots/scenarios-run.md`; live, shots 14 and 36 |
 | 10 | No secret reaches the browser, and none is in the history. | `npm run sweep` scans every commit on every ref for key shapes and for the literal values in `.env.local`: clean. The runtime reads exactly two variables, both public: `grep -rhoE "process\.env\.[A-Z_0-9]+" app lib components proxy.ts next.config.ts` returns `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` and nothing else. Only those two are set on the deployment. | `docs/evidence/secret-sweep.txt` |
-| 11 | A signed out request to any portal route lands on sign in, and `getClaims` runs before anything else. | `npm run verify:auth`, check "a signed out browser asking for a portal route lands on sign in". The call order is in `lib/supabase/proxy.ts`, with the guide's own warning kept as a comment. Every server action also calls `requireClaims()` rather than trusting the proxy, because a matcher change can silently remove proxy coverage. | `docs/screenshots/README.md`, screenshot 07 |
+| 11 | A signed out request to any portal route lands on sign in, and `getClaims` runs before anything else. | `npm run verify:auth`, check "a signed out browser asking for a portal route lands on sign in". The call order is in `lib/supabase/proxy.ts`, with the guide's own warning kept as a comment. Every server action also calls `requireClaims()` rather than trusting the proxy, because a matcher change can silently remove proxy coverage. | `docs/screenshots/README.md`, screenshot 07; live, shot 07 |
 | 12 | The list stays fast at 5,000 rows, and the tenant filter uses an index. | `npm run verify:scale` against a production build: first page rendered in **0.68s**. `explain (analyze)` run as the `authenticated` role under the policies shows `Index Scan using borrowers_org_name_idx`, `Index Cond: (org_id = ((InitPlan 1).col1)::uuid)`, execution 0.120 ms. The `InitPlan` is the select wrapped claim being evaluated once per statement rather than per row. | `docs/evidence/scale-and-explain.txt` |
-| 13 | Every screen is usable at 390 pixels. | `npm run verify:borrowers` and `npm run verify:scenarios` assert no horizontal overflow at 390 and capture the layouts. | Screenshots 19, 20, 21, 23, 37, 38, 39, 40 |
+| 13 | Every screen is usable at 390 pixels. | `npm run verify:borrowers` and `npm run verify:scenarios` assert no horizontal overflow at 390 and capture the layouts. | Screenshots 19, 20, 21, 23, 37, 38, 39, 40; live, shots 39 to 44 |
 | 14 | The build passes with TypeScript strict, ESLint clean, and no legacy keys anywhere. | `npm run build`, `npx tsc --noEmit`, `npx eslint .` all clean. `npm run guard` refuses any tracked or staged environment file, any banned name in content or in a path, and scans the deployable build output. `npm run guard:selftest` proves the guard still fails when it should. The project uses publishable and secret keys only; the guard's key check would refuse a legacy `service_role` reference in code. | `docs/evidence/guard-selftest.txt`, `docs/evidence/name-sweep.txt` |
 
 ## The workflow screens
@@ -93,13 +103,11 @@ Stated so that nothing above is read as more than it is.
   above is from the real project, and each evidence file records which mode
   produced it.
 - Load beyond 5,000 rows in one tenant has not been measured.
-- The browser suites and the walkthrough were run against the production build
-  of this application, at `next build` plus `next start`, not against the
-  deployed URL. The deployment is behind Vercel Deployment Protection, which
-  answers an anonymous request with Vercel's own login page. Re-running them
-  against the deployed URL is one environment variable once that is lifted:
-  `VERIFY_BASE_URL=https://... npm run verify:auth`. The live headers above
-  are the exception: those were captured from the deployment itself.
+- The four local suites run against the production build of this application,
+  at `next build` plus `next start`. The deployed URL is covered separately and
+  directly by `npm run verify:live`, which drives a real, headed Chrome window
+  against the alias, one browser context and one tab per requirement, and
+  writes a screenshot per requirement into `docs/screenshots/live`.
 
 ## Sources
 

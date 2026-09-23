@@ -54,7 +54,17 @@ bucket with its size limit and allowed types, then reads every one of those
 settings back off the project and asserts it. Redacted evidence is written to
 `docs/evidence/provision.txt`.
 
-Expect: `7 assertions passed, 0 failed`.
+Expect: `9 assertions passed, 0 failed`.
+
+The redirect allow list it sets is the deployed URL plus localhost. Preview
+deployments are added only if `PREVIEW_URL_PATTERN` is exported when the
+command runs, for example
+`PREVIEW_URL_PATTERN='https://myapp-*-myaccount.vercel.app/**'`. It is not
+one of the seven variables in `.env.example` because the pattern contains
+the hosting account's own name, which this repository does not carry, and a
+glob wide enough to avoid naming it would accept a redirect to anyone's
+deployment of a project with the same name. The portal signs in with a
+password and uses no redirect flow, so leaving it unset changes nothing here.
 
 Drop `--apply-schema` to reconfigure without touching data. The schema file
 drops and recreates the portal tables, which is what makes it re-runnable.

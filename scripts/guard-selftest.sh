@@ -127,6 +127,27 @@ if ! bash "$guard" >/dev/null 2>&1; then
   fail=1
 fi
 
+# ---------------------------------------------------------------------------
+# 6. A commit that REMOVES a banned term must be allowed through.
+#
+# The staged check first used git diff -G, which matches a line whose
+# occurrences changed in either direction. That refused the very commit that
+# took a banned name out of the repository: the tree was clean and the guard
+# still failed, pointing at the deletion.
+# ---------------------------------------------------------------------------
+echo "line names the client ${NAME} here" > removal.txt
+git add removal.txt
+git commit -q -m "fixture: a file that carries the term"
+echo "line no longer names anyone" > removal.txt
+git add removal.txt
+if ! out5="$(bash "$guard" 2>&1)"; then
+  echo "SELFTEST FAIL: guard refused a commit that removes a banned term"
+  echo "$out5"
+  fail=1
+fi
+git rm -q removal.txt >/dev/null 2>&1
+git commit -q -m "fixture: remove it" >/dev/null 2>&1
+
 if [ "$fail" -eq 0 ]; then
   echo "SELFTEST PASS: every guard check fires on a poisoned tree and clears on a clean one"
 fi

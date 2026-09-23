@@ -220,9 +220,20 @@ name the file.
 ## Supabase redirect configuration
 
 - The Site URL "defines the default redirect URL when no redirectTo is specified" and should be changed from localhost to the production URL, because it is "critical for email confirmations and password resets". https://supabase.com/docs/guides/auth/redirect-urls - 22 Sep 2026
-- Wildcards are supported for preview URLs: `*` matches a sequence of non separator characters and `**` matches any sequence, where the separators are `.` and `/`. So a host's preview URLs need the globstar form, while "we recommend setting the exact redirect URL path for your site URL in production". Both shapes are set. https://supabase.com/docs/guides/auth/redirect-urls - 22 Sep 2026
+- Wildcards are supported for preview URLs: `*` matches a sequence of non separator characters and `**` matches any sequence, where the separators are `.` and `/`. "We recommend setting the exact redirect URL path for your site URL in production", which is the shape used. A preview glob is added only when `PREVIEW_URL_PATTERN` supplies it, because the pattern contains the hosting account's own name and this repository carries no person's name. https://supabase.com/docs/guides/auth/redirect-urls - 22 Sep 2026
 - The Management API fields are `site_url` (string) and `uri_allow_list` (string, comma separated), on the same `PATCH /v1/projects/{ref}/config/auth` endpoint as the hook and the token lifetime. https://supabase.com/docs/reference/api/v1-update-auth-service-config - 22 Sep 2026
 
 ## Recording the walkthrough
 
 - A video is recorded by passing `recordVideo: { dir, size }` to `browser.newContext`, and the file is only written when the context is closed: "Videos are saved upon browser context closure". The path is read with `page.video().path()`, and the recorder awaits the close before looking for the file. https://playwright.dev/docs/videos - 22 Sep 2026
+
+## Turning Deployment Protection off, by API
+
+- A project is updated with `PATCH /v9/projects/{idOrName}`, and the request accepts either a `teamId` or a `slug` query parameter, described as "The Team identifier to perform the request on behalf of". A personal account is a team for this purpose, so the linked project's `orgId` is passed as `teamId`. https://vercel.com/docs/rest-api/reference/endpoints/projects/update-an-existing-project - 23 Sep 2026
+- The body field is `ssoProtection`, an object that is nullable, whose required property `deploymentType` is one of `all`, `preview`, `prod_deployment_urls_and_all_previews` or `all_except_custom_domains`. Sending `{"ssoProtection": null}` removes it, which is how the protection is disabled. The mode the dashboard calls Standard Protection is `all_except_custom_domains`, which is why a `.vercel.app` production URL stayed gated while a custom domain would not have. https://vercel.com/docs/rest-api/reference/endpoints/projects/update-an-existing-project - 23 Sep 2026
+- Observed directly: the CLI keeps its session token in the user's own config directory, so no new token was created and no token value is printed, logged or committed. The call reads it from that file and sends it as a bearer token. docs/evidence/live-headers.txt - 23 Sep 2026
+
+## Headed Chrome for the live run
+
+- `channel` is the "Browser distribution channel", and the values "chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge"... "use branded Google Chrome and Microsoft Edge". The live run uses `channel: "chrome"`, so it drives the Chrome installed on this machine rather than a bundled build. https://playwright.dev/docs/api/class-browsertype - 23 Sep 2026
+- `headless` is "Whether to run browser in headless mode" and "Defaults to true", so the live run passes `headless: false` explicitly and the window is visible while it runs. https://playwright.dev/docs/api/class-browsertype - 23 Sep 2026

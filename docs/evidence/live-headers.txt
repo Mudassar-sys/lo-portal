@@ -1,39 +1,40 @@
-Live response headers from the production deployment.
-captured 2026-09-22T17:07:35Z
+Deployment Protection, and the live response headers behind it.
+captured 2026-09-23T03:40:09.998Z
 
-The deployment currently has Vercel Deployment Protection enabled, so a
-plain curl is answered by Vercel's own login page rather than by the
-portal. 'vercel curl' performs the documented automation bypass, so what
-follows is the portal's own response.
+The session token, the project id and the account id are replaced with
+<redacted> before this file is written. The request below carries no
+cookie and no bypass header: it is what any visitor gets.
 
-$ npx vercel curl -I https://lo-portal-mudassar-sys-projects.vercel.app/login
+Deployment Protection
+read 2026-09-23T03:39:59.609Z
+
+project        lo-portal
+ssoProtection  enabled, deploymentType all_except_custom_domains
+passwordProtection not set
+trustedIps     not set
+
+PATCH /v9/projects/<redacted>  {"ssoProtection": null}
+ssoProtection  not set   (read back from the response)
+ssoProtection  not set   (read back on a fresh GET)
+
+Anonymous request, no cookies and no bypass header
+$ GET https://fieldstone-portal.vercel.app/login
+  attempt 1: 302 https://vercel.com/sso-api?url=https%3A%2F%2Ffieldstone-portal.vercel.app%2Flogin&nonce=3b863a0077340d625a34ba6be85d8b4550cebac8d5457ced4ed20d33e7432b71
+  attempt 2: 302 https://vercel.com/sso-api?url=https%3A%2F%2Ffieldstone-portal.vercel.app%2Flogin&nonce=1d4bdd229e42debfbc732ea8c56fbea415b777a57ced0b333eda3e8309154f05
 
 HTTP/1.1 200 OK
-Accept-Ranges: bytes
-Access-Control-Allow-Origin: *
-Age: 20
-Cache-Control: public, max-age=0, must-revalidate
-Content-Disposition: inline
-Content-Length: 16427
-Content-Security-Policy: frame-ancestors 'none'
-Content-Type: text/html; charset=utf-8
-Cross-Origin-Opener-Policy: same-origin
-Date: Tue, 22 Sep 2026 17:07:43 GMT
-Etag: "9f2e89a6cb72e96ecbfe3b3b08864a68"
-Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
-Referrer-Policy: strict-origin-when-cross-origin
-Server: Vercel
-Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
-Vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
-X-Content-Type-Options: nosniff
-X-Frame-Options: DENY
-X-Matched-Path: /login
-X-Nextjs-Prerender: 1
-X-Nextjs-Stale-Time: 300
-X-Robots-Tag: noindex
-X-Vercel-Cache: HIT
-X-Vercel-Id: bom1::hhgnj-1790096863035-18cf2d911787
+content-type: text/html; charset=utf-8
+strict-transport-security: max-age=63072000; includeSubDomains; preload
+content-security-policy: frame-ancestors 'none'
+x-frame-options: DENY
+x-content-type-options: nosniff
+referrer-policy: strict-origin-when-cross-origin
+permissions-policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+cross-origin-opener-policy: same-origin
+x-matched-path: /login
+x-vercel-id: bom1::7kcgm-1790134809556-fc55ab886537
 
+portal sign in page served to an anonymous request: yes
 
 Required headers, each present above:
   Strict-Transport-Security   max-age=63072000; includeSubDomains; preload
